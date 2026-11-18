@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Uno com escada</title>
+<meta name="description" content="Um Fiat Uno Mille EP 1996 com escada no teto para pilotar em três versões de circuito WebGPU: Fable 5.2, Opus 5.5 e GPT-6.2 Astra.">
+<meta property="og:title" content="Uno com escada">
+<meta property="og:description" content="Um Fiat Uno Mille EP 1996 com escada no teto para pilotar em três versões de circuito WebGPU: Fable 5.2, Opus 5.5 e GPT-6.2 Astra.">
+<style>
+  :root {
+    --bg: #0f1415;
+    --surface: #171e20;
+    --surface-hover: #1e2729;
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --text: #f2f1ec;
+    --muted: #aeb6b4;
+    --accent: #e55824;
+    --accent-hover: #f26c3a;
+    --gold: #f6c963;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  a { color: inherit; }
+
+  /* Hub view */
+  .hub {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 24px 56px;
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 8px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: clamp(32px, 4.2vw, 48px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+  .lead {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 56ch;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .hero-img-wrap {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+    aspect-ratio: 16 / 9;
+  }
+  .hero-img-wrap img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .webgpu-note {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .webgpu-note strong { color: var(--text); }
+
+  .section-title {
+    margin: 0 0 16px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 44px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+  .thumb {
+    aspect-ratio: 16 / 9;
+    background: #0a0d0e;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-body {
+    padding: 18px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .card-circuit {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 4px;
+  }
+  .card h2 {
+    margin: 0 0 8px;
+    font-size: 21px;
+    letter-spacing: -0.015em;
+  }
+  .card p {
+    margin: 0 0 14px;
+    font-size: 14px;
+    color: var(--muted);
+    flex: 1;
+  }
+  .specs {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 16px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .specs span strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 7px;
+    border: 1px solid var(--border-strong);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font: 600 14px/1.2 inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .btn:hover, .btn:focus-visible {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.36);
+    outline: none;
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .card-actions .btn-primary {
+    flex: 1;
+  }
+  .btn-primary:hover, .btn-primary:focus-visible {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .panel h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .key-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 16px;
+    font-size: 13px;
+  }
+  .key-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+  }
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+
+  /* Player view */
+  body.playing {
+    overflow: hidden;
+  }
+  body.playing .hub {
+    display: none;
+  }
+  #player {
+    display: none;
+    position: fixed;
+    inset: 0;
+    flex-direction: column;
+    background: #000;
+  }
+  body.playing #player {
+    display: flex;
+  }
+  .topbar {
+    height: 42px;
+    flex: 0 0 42px;
+    background: #111618;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .topbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .tab-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font: 600 13px/1 inherit;
+    padding: 7px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .tab-btn[aria-pressed="true"] {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .topbar-link {
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .topbar-link:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  #gameFrame {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #000;
+  }
+
+  @media (max-width: 920px) {
+    .hero { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .controls-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .hub { padding: 24px 16px 40px; }
+    .key-list { grid-template-columns: 1fr; }
+    .topbar { padding: 0 8px; }
+    .topbar-link { display: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="hub">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Fiat Uno Mille EP 1996 · WebGPU</p>
+        <h1>Uno com escada</h1>
+        <p class="lead">
+          Três versões autocontidas do mesmo circuito 3D, geradas inteiramente em código sem assets externos, engine ou biblioteca 3D. Escolha uma versão para pilotar direto no navegador.
+        </p>
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary" data-launch="fable">Jogar Fable 5.2</button>
+          <button type="button" class="btn" data-launch="opus">Jogar Opus 5.5</button>
+          <button type="button" class="btn" data-launch="astra">Jogar GPT-6.2 Astra</button>
+        </div>
+        <p class="webgpu-note" id="webgpuNote">
+          <strong>Requisito:</strong> navegador com suporte a <strong>WebGPU</strong> (Chrome ou Edge em computador).
+        </p>
+      </div>
+      <div class="hero-img-wrap">
+        <img src="/screenshots/fable-tv.jpg" alt="Fiat Uno azul com escada de alumínio no teto contornando curva pela câmera de TV">
+      </div>
+    </section>
+
+    <h2 class="section-title">As três versões</h2>
+    <section class="grid" aria-label="Versões jogáveis">
+      <article class="card">
+        <div class="thumb">
+          <img src="/screenshots/fable-largada.jpg" alt="Reta de largada na versão do Fable 5.2">
+        </div>
+        <div class="card-body">
+          <div class="card-circuit">Serra da Mata</div>
+          <h2>Fable 5.2</h2>
+          <p>Inclui menu inicial, áudio sintetizado em tempo real, suporte a controle, modo benchmark e volta roteirizada.</p>
+          <div class="specs">
+            <span><strong>603 KB</strong> HTML</span>
+            <span><strong>8</strong> rodadas</span>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary" data-launch="fable">Jogar Fable</button>
+            <a class="btn" href="/fable/" aria-label="Abrir Fable 5.2 em tela cheia">Direto</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="thumb">
+          <img src="/screenshots/opus-largada.jpg" alt="Pórtico de largada na versão do Opus 5.5">
+        </div>
+        <div class="card-body">
+          <div class="card-circuit">Circuito da Serra</div>
+          <h2>Opus 5.5</h2>
+          <p>Renderizador WebGPU diferido com SDF para a carroceria, menu de pausa, som sintetizado e benchmark de 60 s.</p>
+          <div class="specs">
+            <span><strong>341 KB</strong> HTML</span>
+            <span><strong>11</strong> rodadas</span>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary" data-launch="opus">Jogar Opus</button>
+            <a class="btn" href="/opus/" aria-label="Abrir Opus 5.5 em tela cheia">Direto</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="thumb">
+          <img src="/screenshots/astra-largada.jpg" alt="Uno azul na frente dos boxes na Serra do Lume, versão do GPT-6.2 Astra">
+        </div>
+        <div class="card-body">
+          <div class="card-circuit">Serra do Lume</div>
+          <h2>GPT-6.2 Astra</h2>
+          <p>Abre direto na pista com arquibancada populada, três câmeras, mapa do traçado e painel analógico no HUD.</p>
+          <div class="specs">
+            <span><strong>467 KB</strong> HTML</span>
+            <span><strong>19</strong> rodadas</span>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary" data-launch="astra">Jogar Astra</button>
+            <a class="btn" href="/astra/" aria-label="Abrir GPT-6.2 Astra em tela cheia">Direto</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <h2 class="section-title">Controles</h2>
+    <section class="controls-grid" aria-label="Resumo dos controles">
+      <div class="panel">
+        <h3>Pilotagem (Teclado)</h3>
+        <ul class="key-list">
+          <li><span>Acelerar</span> <kbd>W / ↑</kbd></li>
+          <li><span>Frear / Ré</span> <kbd>S / ↓</kbd></li>
+          <li><span>Esterçar</span> <kbd>A D / ← →</kbd></li>
+          <li><span>Freio de mão</span> <kbd>Espaço</kbd></li>
+          <li><span>Trocar câmera</span> <kbd>C</kbd></li>
+          <li><span>Voltar à pista</span> <kbd>R</kbd></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Menu e Ferramentas (Fable e Opus)</h3>
+        <ul class="key-list">
+          <li><span>Pausar / Menu</span> <kbd>Esc</kbd></li>
+          <li><span>Ligar / Desligar som</span> <kbd>M</kbd></li>
+          <li><span>Olhar para trás</span> <kbd>V</kbd></li>
+          <li><span>Benchmark 60 s</span> <kbd>B</kbd></li>
+          <li><span>Volta roteirizada</span> <kbd>F</kbd></li>
+          <li><span>Poses fixas</span> <kbd>1 – 6</kbd></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <section id="player" aria-label="Área do jogo">
+    <nav class="topbar" aria-label="Seletor de versões">
+      <div class="topbar-group">
+        <button type="button" class="tab-btn" id="backBtn">← Início</button>
+        <button type="button" class="tab-btn" data-switch="fable" aria-pressed="false">Fable 5.2</button>
+        <button type="button" class="tab-btn" data-switch="opus" aria-pressed="false">Opus 5.5</button>
+        <button type="button" class="tab-btn" data-switch="astra" aria-pressed="false">GPT-6.2 Astra</button>
+      </div>
+      <a class="topbar-link" id="directLink" href="/fable/">Abrir página direta</a>
+    </nav>
+    <iframe id="gameFrame" title="Jogo Uno com escada" allow="gamepad; fullscreen"></iframe>
+  </section>
+
+  <script>
+    (() => {
+      const VALID = new Set(['fable', 'opus', 'astra']);
+      const frame = document.getElementById('gameFrame');
+      const directLink = document.getElementById('directLink');
+      const backBtn = document.getElementById('backBtn');
+      const switchBtns = Array.from(document.querySelectorAll('[data-switch]'));
+      const webgpuNote = document.getElementById('webgpuNote');
+
+      if (!('gpu' in navigator)) {
+        webgpuNote.innerHTML = '<strong>Aviso:</strong> WebGPU não foi detectado neste navegador. Para jogar, abra em Chrome ou Edge com aceleração de hardware.';
+      }
+
+      function setActiveVersion(version, pushUrl = true) {
+        if (!VALID.has(version)) return;
+        document.body.classList.add('playing');
+        document.body.dataset.version = version;
+        const target = `/${version}/`;
+        if (frame.getAttribute('src') !== target) {
+          frame.setAttribute('src', target);
+        }
+        directLink.setAttribute('href', target);
+        switchBtns.forEach((btn) => {
+          btn.setAttribute('aria-pressed', String(btn.dataset.switch === version));
+        });
+        if (pushUrl) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('version', version);
+          window.history.replaceState(null, '', url);
+        }
+        frame.addEventListener('load', () => {
+          try { frame.contentWindow?.focus(); } catch {}
+        }, { once: true });
+      }
+
+      function exitPlayer() {
+        document.body.classList.remove('playing');
+        delete document.body.dataset.version;
+        frame.removeAttribute('src');
+        switchBtns.forEach((btn) => btn.setAttribute('aria-pressed', 'false'));
+        const url = new URL(window.location.href);
+        url.searchParams.delete('version');
+        url.searchParams.delete('autostart');
+        window.history.replaceState(null, '', url);
+      }
+
+      document.querySelectorAll('[data-launch]').forEach((btn) => {
+        btn.addEventListener('click', () => setActiveVersion(btn.dataset.launch));
+      });
+      switchBtns.forEach((btn) => {
+        btn.addEventListener('click', () => setActiveVersion(btn.dataset.switch));
+      });
+      backBtn.addEventListener('click', exitPlayer);
+
+      const params = new URLSearchParams(window.location.search);
+      const initial = params.get('version');
+      if (VALID.has(initial)) {
+        setActiveVersion(initial, false);
+      } else if (params.get('autostart') === '1') {
+        setActiveVersion('fable', false);
+      }
+    })();
+  </script>
+</body>
+</html>
