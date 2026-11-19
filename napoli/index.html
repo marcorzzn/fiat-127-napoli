@@ -2969,9 +2969,14 @@ async function gpuInit() {
   for (const f of ['float32-filterable', 'rg11b10ufloat-renderable'].concat((Q.has('perf') || GAME.ui) && !Q.has('nots') ? ['timestamp-query'] : [])) if (ad.features.has(f)) feats.push(f);
   if (!ad.features.has('float32-filterable')) throw new Error('GPU senza supporto float32-filterable.');
   G.hasTS = feats.includes('timestamp-query');
+  const reqLimits = {};
+  if (ad.limits.maxColorAttachmentBytesPerSample) reqLimits.maxColorAttachmentBytesPerSample = Math.min(64, ad.limits.maxColorAttachmentBytesPerSample);
+  if (ad.limits.maxBufferSize) reqLimits.maxBufferSize = ad.limits.maxBufferSize;
+  if (ad.limits.maxTextureDimension2D) reqLimits.maxTextureDimension2D = Math.min(8192, ad.limits.maxTextureDimension2D);
+  if (ad.limits.maxSampledTexturesPerShaderStage) reqLimits.maxSampledTexturesPerShaderStage = Math.min(16, ad.limits.maxSampledTexturesPerShaderStage);
   G.dev = await ad.requestDevice({
     requiredFeatures: feats,
-    requiredLimits: { maxColorAttachmentBytesPerSample: Math.min(64, ad.limits.maxColorAttachmentBytesPerSample), maxSampledTexturesPerShaderStage: 24, maxBufferSize: ad.limits.maxBufferSize, maxTextureDimension2D: 8192 }
+    requiredLimits: reqLimits
   });
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
