@@ -41,6 +41,12 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 #ui button:focus-visible{outline:2px solid #6ec5ff;outline-offset:2px}
 #ui .hub-link{display:inline-block;margin-top:1.15em;font-size:.86em;color:#a8c7e6;text-decoration:none;letter-spacing:.04em}
 #ui .hub-link:hover{color:#fff;text-decoration:underline}
+#ui .q-bar{margin:1.4em auto 0;display:flex;align-items:center;justify-content:center;gap:.8em;flex-wrap:wrap;font-size:.9em}
+#ui .q-title{color:#a6bbd1;font-weight:600}
+#ui .q-group{display:inline-flex;gap:4px;background:rgba(255,255,255,.06);padding:3px;border-radius:.6em;border:1px solid rgba(154,203,255,.22)}
+#ui .q-btn{appearance:none;background:transparent;border:1px solid transparent;color:#a6bbd1;font:inherit;font-size:.9em;font-weight:600;padding:.35em .8em;border-radius:.45em;cursor:pointer;transition:all .15s ease}
+#ui .q-btn:hover{color:#fff;background:rgba(255,255,255,.1)}
+#ui .q-btn.active,#ui .q-btn[aria-pressed="true"]{color:#fff;background:#1278d8;border-color:#1278d8}
 </style>
 </head>
 <body data-state="loading">
@@ -77,6 +83,7 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 <div><h2>Strumenti</h2><table>
 <tr><td>M</td><td>attiva / disattiva audio</td></tr>
 <tr><td>H</td><td>statistiche prestazioni</td></tr>
+<tr><td>Q</td><td>qualità (Bassa/Media/Alta)</td></tr>
 <tr><td>F</td><td>guida autonoma (Demo)</td></tr>
 <tr><td>B</td><td>benchmark 60 s</td></tr>
 <tr><td>1 – 6</td><td>pose fisse livrea e pista</td></tr>
@@ -84,7 +91,15 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 </table></div>
 </div>
 <div class="bt"><button id="b0">Inizia gara</button><button id="bDemo">Guida autonoma (Demo)</button><button id="b1">Benchmark 60 s</button></div>
-<a class="hub-link" href="/">← Torna alla selezione circuiti</a>
+<div class="q-bar">
+<span class="q-title">Qualità:</span>
+<div class="q-group">
+<button type="button" class="q-btn" id="qLow">Bassa (Radeon R5)</button>
+<button type="button" class="q-btn" id="qMed">Media</button>
+<button type="button" class="q-btn" id="qHigh">Alta</button>
+</div>
+</div>
+<a class="hub-link" href="../">← Torna alla selezione circuiti</a>
 </div></div>
 <script>
 (()=>{'use strict';
@@ -2834,6 +2849,47 @@ function halton(i, b) { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % 
 const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
+
+// Preset di qualità grafica calibrati per AMD Radeon R5 e hardware modesto
+const QUALITY_PRESETS = {
+  low:  { label: 'Bassa', scale: 0.60, msaa: 1, shadow: 512,  envRes: 256, envMips: 6, facesPerFrame: 1 },
+  med:  { label: 'Media', scale: 0.75, msaa: 1, shadow: 1024, envRes: 256, envMips: 6, facesPerFrame: 1 },
+  high: { label: 'Alta',  scale: 1.00, msaa: 4, shadow: 2048, envRes: 512, envMips: 7, facesPerFrame: 2 },
+};
+
+function detectDefaultQuality(adapterInfo) {
+  try {
+    const saved = localStorage.getItem('napoli_quality');
+    if (saved && QUALITY_PRESETS[saved]) return saved;
+  } catch (e) {}
+  const param = Q.get('quality');
+  if (param && QUALITY_PRESETS[param]) return param;
+
+  const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
+  if (/radeon\s*r[2-5]|intel.*(hd|uhd)|swiftshader|llvmpipe/.test(desc)) {
+    return 'low';
+  }
+  return 'med';
+}
+
+let currentQuality = 'med';
+let Q_CONF = QUALITY_PRESETS.med;
+
+function setQuality(qKey, reload = true) {
+  if (!QUALITY_PRESETS[qKey]) return;
+  try {
+    localStorage.setItem('napoli_quality', qKey);
+  } catch (e) {}
+  if (reload) {
+    const url = new URL(location.href);
+    url.searchParams.set('quality', qKey);
+    if (typeof UI !== 'undefined' && UI.st === ST.JOGO) {
+      url.searchParams.set('autostart', '1');
+    }
+    location.href = url.toString();
+  }
+}
+
 // Jogo aberto por uma pessoa (tela de início, painel, som) × ferramenta (captura, poses, teste, medição): as ferramentas de
 // trabalho/ usam ?cap, ?perf, ?replay ou rodam num navegador automatizado, e para elas nada muda — sem menu, sem painel.
 // ?ui=1 força o jogo completo (é como os testes de menu, entrada e som o abrem); ?ui=0 força o modo de ferramenta.
@@ -2843,14 +2899,21 @@ const RT = new Float64Array([0, 1 / 60, 1 / 60, 0]);   // RT[3] = intervalo real
 const G = { dev: null, ctx: null, fmt: 'bgra8unorm', W: 0, H: 0, hasTS: false, canvas: null };
 
 async function gpuInit() {
-  if (!navigator.gpu) throw new Error('WebGPU indisponível neste navegador.');
+  if (!navigator.gpu) throw new Error('WebGPU non disponibile in questo browser.');
   const ad = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
-  if (!ad) throw new Error('Nenhum adaptador WebGPU.');
+  if (!ad) throw new Error('Nessun adattatore GPU WebGPU disponibile.');
+  let adapterInfo = null;
+  try {
+    adapterInfo = ad.info || (ad.requestAdapterInfo ? await ad.requestAdapterInfo() : null);
+  } catch (e) {}
+  currentQuality = detectDefaultQuality(adapterInfo);
+  Q_CONF = QUALITY_PRESETS[currentQuality];
+
   const feats = [];
   // 'timestamp-query' é pedido na medição de desempenho (?perf) e no jogo aberto por uma pessoa (benchmark e estatísticas
   // mostram o tempo de GPU quando o navegador permite); ?nots desliga. Captura, poses e testes continuam sem o recurso.
   for (const f of ['float32-filterable', 'rg11b10ufloat-renderable'].concat((Q.has('perf') || GAME.ui) && !Q.has('nots') ? ['timestamp-query'] : [])) if (ad.features.has(f)) feats.push(f);
-  if (!ad.features.has('float32-filterable')) throw new Error('GPU sem float32-filterable.');
+  if (!ad.features.has('float32-filterable')) throw new Error('GPU senza supporto float32-filterable.');
   G.hasTS = feats.includes('timestamp-query');
   G.dev = await ad.requestDevice({
     requiredFeatures: feats,
@@ -2859,9 +2922,10 @@ async function gpuInit() {
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
   const res = (Q.get('res') || '').split('x');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr);
-  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr);
+  const dpr = Math.min(window.devicePixelRatio || 1, currentQuality === 'high' ? 2 : 1);
+  const qScale = Q_CONF.scale;
+  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr * qScale);
+  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr * qScale);
   G.W = clamp(G.W & ~1, 320, 5120); G.H = clamp(G.H & ~1, 180, 2880);
   G.canvas.width = G.W; G.canvas.height = G.H;
   G.ctx = G.canvas.getContext('webgpu');
@@ -3683,7 +3747,9 @@ function worldMapBuild() {
 
 // ---- 20_renderer.js
 // Núcleo do renderizador diferido: recursos, uniformes de quadro, famílias de material e o grafo de passes.
-const SHADOW_RES = 2048, SHADOW_S_RES = 4096, ENV_RES = 512, ENV_MIPS = 7, SKY_W = 4096, SKY_H = 1024, VOL_DIST = 220;
+const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = currentQuality === 'low' ? 1024 : currentQuality === 'med' ? 2048 : 4096;
+const ENV_RES = Q_CONF.envRes || (currentQuality === 'low' ? 256 : 512), ENV_MIPS = Q_CONF.envMips || (currentQuality === 'low' ? 6 : 7);
+const SKY_W = currentQuality === 'low' ? 2048 : 4096, SKY_H = currentQuality === 'low' ? 512 : 1024, VOL_DIST = 220;
 const SKY_EL0 = -0.14, SKY_ELR = PI / 2 + 0.14;
 const SH_DEFS = { SHADOW_RES: SHADOW_RES + '.0', ENV_MIPS: ENV_MIPS + '.0', ENV_MIP_K: (ENV_RES * 2 / (PI * 1.5)).toFixed(2), VOL_DIST: VOL_DIST + '.0', SKY_EL0: SKY_EL0.toFixed(5), SKY_ELR: SKY_ELR.toFixed(5) };
 const KIND = { GBUF: 0, SHADOW: 1, CUBE: 2 };
@@ -3999,10 +4065,10 @@ function renderFrame() {
   for (let i = 0; i < 3; i++) cascadeSetup(i);
   setPass(0, c.vpJ, c.pos);
   for (let i = 0; i < 3; i++) setPass(1 + i, R.casc.vp[i], c.pos);
-  // uma face do cubemap de ambiente por quadro (ciclo completo a cada 6 quadros)
-  // duas faces do cubemap de ambiente por quadro, cada uma na posição atual do carro (ciclo completo a cada 3 quadros)
-  const face = (R.frameIdx * 2) % 6; R.cube.cur.set(R.cube.pos);
-  for (let k = 0; k < 2; k++) { cubeSetup(face + k); setPass(5 + face + k, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
+  // faces do cubemap de ambiente por quadro (ciclo completo adaptado à qualidade)
+  const nFaces = Q_CONF.facesPerFrame || (currentQuality === 'low' ? 1 : 2);
+  const face = (R.frameIdx * nFaces) % 6; R.cube.cur.set(R.cube.pos);
+  for (let k = 0; k < nFaces; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
   dev.queue.writeBuffer(R.frameBuf, 0, FR.data);
   dev.queue.writeBuffer(R.passBuf, 0, R.passData, 0, 13 * 64);
   dev.queue.writeBuffer(R.objBuf, 0, R.objData, 0, R.objCount * 64);
@@ -4014,8 +4080,8 @@ function renderFrame() {
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();
   }
   // faces do cubemap de ambiente
-  for (let k = 0; k < 2; k++) {
-    const f = face + k; cubeSetup(f);
+  for (let k = 0; k < nFaces; k++) {
+    const f = (face + k) % 6; cubeSetup(f);
     const p = apiPass(enc, D.cube[f]);
     cubeSky(p, 11 + k);
     drawAll(p, ctxFrom(KIND.CUBE, R.cube.vp, 6, R.cube.cur, 0), 5 + f, R.passBGCube); p.end();
@@ -6414,7 +6480,7 @@ function vegArchetypes() {
 // ---- 33_veg_c_sys.js
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: true,
+  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: currentQuality !== 'low',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },
@@ -6550,17 +6616,20 @@ function vegPlace() {
 function vegBakeImpostors(cpu) {
   const dev = G.dev, S = 512, layers = VEG_NT * 8, V = VEG;
   const mips = 8;
+  const SAMPLE_COUNT = Q_CONF.msaa || 1;
   V.texA = dev.createTexture({ size: [S, S, layers], format: 'rgba8unorm-srgb', usage: TU.RT | TU.TB, mipLevelCount: mips });
   V.texN = dev.createTexture({ size: [S, S, layers], format: 'rgba8unorm', usage: TU.RT | TU.TB, mipLevelCount: mips });
-  const msA = dev.createTexture({ size: [S, S], format: 'rgba8unorm-srgb', usage: TU.RT, sampleCount: 4 }), msN = dev.createTexture({ size: [S, S], format: 'rgba8unorm', usage: TU.RT, sampleCount: 4 });
-  const msD = dev.createTexture({ size: [S, S], format: 'depth32float', usage: TU.RT, sampleCount: 4 });
+  const msA = SAMPLE_COUNT === 4 ? dev.createTexture({ size: [S, S], format: 'rgba8unorm-srgb', usage: TU.RT, sampleCount: 4 }) : null;
+  const msN = SAMPLE_COUNT === 4 ? dev.createTexture({ size: [S, S], format: 'rgba8unorm', usage: TU.RT, sampleCount: 4 }) : null;
+  const msD = dev.createTexture({ size: [S, S], format: 'depth32float', usage: TU.RT, sampleCount: SAMPLE_COUNT });
   const code = wgslPP('veg_bake', SH_DEFS), mod = mkShader('veg_bake', SH_DEFS), bgls = reflectBGLs(code);
-  const pipe = dev.createRenderPipeline({
+  const pipeDesc = {
     layout: dev.createPipelineLayout({ bindGroupLayouts: bgls }), vertex: { module: mod, entryPoint: 'vs', buffers: [VLAYOUT] },
     fragment: { module: mod, entryPoint: 'fs', targets: [{ format: 'rgba8unorm-srgb' }, { format: 'rgba8unorm' }] },
     primitive: { cullMode: 'none' }, depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
-    multisample: { count: 4, alphaToCoverageEnabled: true },
-  });
+  };
+  if (SAMPLE_COUNT === 4) pipeDesc.multisample = { count: 4, alphaToCoverageEnabled: true };
+  const pipe = dev.createRenderPipeline(pipeDesc);
   const ub = new Float32Array(layers * 64), view = m4(), proj = m4(), vp = m4(), el = 8 * PI / 180;
   for (let a = 0; a < VEG_NA; a++) {
     const f = cpu[a].f32; let r = 0, h = 0; for (let i = 0; i < cpu[a].nv; i++) { r = Math.max(r, Math.hypot(f[i * 9], f[i * 9 + 2])); h = Math.max(h, f[i * 9 + 1]); }
@@ -6576,16 +6645,24 @@ function vegBakeImpostors(cpu) {
   const enc = dev.createCommandEncoder();
   for (let a = 0; a < VEG_NT; a++) for (let k = 0; k < 8; k++) {
     const L = a * 8 + k, lv = t => t.createView({ dimension: '2d', baseArrayLayer: L, arrayLayerCount: 1, baseMipLevel: 0, mipLevelCount: 1 });
+    const colorAttachments = SAMPLE_COUNT === 4 ? [
+      { view: msA.createView(), resolveTarget: lv(V.texA), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
+      { view: msN.createView(), resolveTarget: lv(V.texN), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }
+    ] : [
+      { view: lv(V.texA), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
+      { view: lv(V.texN), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }
+    ];
     const p = enc.beginRenderPass({
-      colorAttachments: [{ view: msA.createView(), resolveTarget: lv(V.texA), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
-      { view: msN.createView(), resolveTarget: lv(V.texN), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }],
+      colorAttachments,
       depthStencilAttachment: { view: msD.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 },
     });
     p.setPipeline(pipe); p.setBindGroup(0, bg, [L * 256]); p.setVertexBuffer(0, V.meshes[a].vb); p.setIndexBuffer(V.meshes[a].ib, 'uint32'); p.drawIndexed(V.meshes[a].count); p.end();
   }
   dev.queue.submit([enc.finish()]);
   genMips(V.texA, 'rgba8unorm-srgb', layers); genMips(V.texN, 'rgba8unorm', layers);
-  msA.destroy(); msN.destroy(); msD.destroy();
+  if (msA) msA.destroy();
+  if (msN) msN.destroy();
+  msD.destroy();
 }
 
 const vegDrawable = {
@@ -6716,6 +6793,12 @@ const GRASS = {
 };
 function grassBuild() {
   const dev = G.dev, V = VEG;
+  if (currentQuality === 'low') {
+    GRASS.rings = [
+      { cell: 0.25, bs: 36, B: 8, K: 1, q: [0, 2, 22, 30], w: 0.02, prev: -1 },
+      { cell: 0.6, bs: 48, B: 10, K: 0, q: [18, 28, 80, 110], w: 0.6, prev: 0 },
+    ];
+  }
   // máscara de mata (2 m/texel) na área dos mapas do mundo
   const fw = Math.ceil(HF.w / 2), fh = Math.ceil(HF.h / 2), fd = new Uint8Array(fw * fh);
   for (let j = 0; j < fh; j++) for (let i = 0; i < fw; i++) fd[j * fw + i] = Math.round(255 * forestAt(HF.x0 + i * 2, HF.z0 + j * 2));
@@ -7940,6 +8023,18 @@ const $ = id => document.getElementById(id);
 function uiInit() {
   UI.el = $('ui'); UI.tag = $('tag'); UI.res = $('res'); UI.b0 = $('b0'); UI.bDemo = $('bDemo'); UI.b1 = $('b1');
   hudInit(); uiWarmup();
+  const updateQualityBtns = () => {
+    ['low', 'med', 'high'].forEach(k => {
+      const b = $('q' + k.charAt(0).toUpperCase() + k.slice(1));
+      if (b) {
+        const isCurrent = currentQuality === k;
+        b.setAttribute('aria-pressed', String(isCurrent));
+        b.classList.toggle('active', isCurrent);
+        b.onclick = () => { if (currentQuality !== k) setQuality(k, true); };
+      }
+    });
+  };
+  updateQualityBtns();
   try { const b = +localStorage.getItem('napoli127-migliore'); if (b > 15 && b < 600) LAP[2] = b; } catch (e) { /* solo sessione corrente */ }
   UI.b0.onclick = () => { if (UI.st === ST.INICIO) { sndStart(); uiSet(ST.JOGO); } else uiResume(); };
   if (UI.bDemo) UI.bDemo.onclick = () => { if (UI.st === ST.INICIO) sndStart(); uiReplay(); };
@@ -7948,7 +8043,8 @@ function uiInit() {
   document.addEventListener('visibilitychange', () => { if (document.hidden && (UI.st === ST.JOGO || UI.st === ST.FITA || UI.st === ST.BENCH)) uiPause(); });
   addEventListener('gamepadconnected', padCount); addEventListener('gamepaddisconnected', padCount);
   const h = $('hint'); if (h) h.style.display = 'none';
-  if (Q.get('autostart') === '1') { sndStart(); uiSet(ST.JOGO); }
+  if (Q.get('demo') === '1') { sndStart(); uiReplay(); }
+  else if (Q.get('autostart') === '1') { sndStart(); uiSet(ST.JOGO); }
   else uiSet(ST.INICIO);
 }
 // Cambio stato: mostra/nasconde menu, cruscotto e banner; aggiorna data-state su body
@@ -7984,6 +8080,12 @@ function uiKey(e) {
   const c = e.code, st = UI.st;
   if (c === 'KeyM') { sndMute(!SND.mute); return; }
   if (c === 'KeyH') { UI.stats = !UI.stats; hudStats(UI.stats); if (st !== ST.BENCH) perfAttach(UI.stats, 12); return; }
+  if (c === 'KeyQ') {
+    const seq = ['low', 'med', 'high'];
+    const next = seq[(seq.indexOf(currentQuality) + 1) % seq.length];
+    setQuality(next, true);
+    return;
+  }
   if (st === ST.INICIO) {
     if (c === 'Enter' || c === 'Space') { e.preventDefault(); sndStart(); uiSet(ST.JOGO); }
     else if (c === 'KeyF') { sndStart(); uiReplay(); }
@@ -8008,9 +8110,9 @@ function benchEnd() {
     const r = perfReport(), stat = a => { a = a.slice(5).filter(x => x > 0).sort((p, q) => p - q); const n = a.length; return n ? { n, media: a.reduce((p, q) => p + q, 0) / n, p99: a[Math.min(n - 1, Math.round(0.99 * (n - 1)))], max: a[n - 1], acima: a.filter(x => Math.round(x * 10) > 167).length } : null; };
     const q = stat(r.raf), g = PERF.qs ? stat(r.gpu) : null, f = x => x.toFixed(2).replace('.', ',');
     benchStop(); gameRestart();
-    UI.bench = { quadros: r.n, quadro_ms: q, gpu_ms: g, fps: q ? 1000 / q.media : 0, acima_16_7: q ? q.acima : 0, gpu_acima_16_7: g ? g.acima : null, tick: 3600, resolucao: G.W + '×' + G.H };
+    UI.bench = { quadros: r.n, quadro_ms: q, gpu_ms: g, fps: q ? 1000 / q.media : 0, acima_16_7: q ? q.acima : 0, gpu_acima_16_7: g ? g.acima : null, tick: 3600, resolucao: G.W + '×' + G.H + ' (' + Q_CONF.label + ')' };
     const row = (n, s) => '<tr><th>' + n + '</th>' + (s ? '<td>' + f(s.media) + '</td><td>' + f(s.p99) + '</td><td>' + f(s.max) + '</td>' : '<td colspan=3>non disponibile su questo browser</td>') + '</tr>';
-    UI.res.innerHTML = '<h2>Benchmark · giro autonomo 60 s · ' + G.W + '×' + G.H + '</h2><table><tr><th></th><th>media (ms)</th><th>99° pct (ms)</th><th>max (ms)</th></tr>' + row('Tempo frame', q) + row('Tempo GPU', g) + '</table>' +
+    UI.res.innerHTML = '<h2>Benchmark · giro autonomo 60 s · ' + G.W + '×' + G.H + ' (' + Q_CONF.label + ')</h2><table><tr><th></th><th>media (ms)</th><th>99° pct (ms)</th><th>max (ms)</th></tr>' + row('Tempo frame', q) + row('Tempo GPU', g) + '</table>' +
       '<p>' + (q ? q.acima + ' su ' + q.n + ' frame oltre 16,7 ms' + (g ? ' · ' + g.acima + ' oltre 16,7 ms GPU' : '') + ' · ' + f(1000 / q.media) + ' FPS medi' : '') + '</p>';
   }, 400);
 }
@@ -8141,6 +8243,8 @@ async function main() {
     if (!GAME.capture) requestAnimationFrame(rafLoop);
   } catch (e) {
     document.body.dataset.state = 'webgpu-unavailable';
+    const hint = document.getElementById('hint');
+    if (hint) hint.style.display = 'none';
     if (msgEl) {
       const safeMsg = String(e && e.message ? e.message : e).replace(/[<>&]/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]));
       msgEl.innerHTML =
@@ -8148,7 +8252,7 @@ async function main() {
         '<p class="err-eyebrow">Gran Premio di Napoli · Fiat 127 Napoli 1926</p>' +
         '<h1 class="err-title">WebGPU richiesto per il circuito 3D</h1>' +
         '<p class="err-body">Questo circuito usa il motore grafico WebGPU nativo del progetto (' + safeMsg + '). Apri la pagina su Chrome, Edge o Safari 18+ con accelerazione hardware GPU abilitata per correre sul Lungomare Caracciolo.</p>' +
-        '<a class="err-link" href="/">← Torna alla panoramica</a>' +
+        '<a class="err-link" href="../">← Torna alla panoramica</a>' +
         '</div>';
     }
     console.error(e); GAME.error = e.message;

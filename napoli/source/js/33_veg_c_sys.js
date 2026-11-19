@@ -1,6 +1,6 @@
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: true,
+  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: currentQuality !== 'low',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },
@@ -136,17 +136,20 @@ function vegPlace() {
 function vegBakeImpostors(cpu) {
   const dev = G.dev, S = 512, layers = VEG_NT * 8, V = VEG;
   const mips = 8;
+  const SAMPLE_COUNT = Q_CONF.msaa || 1;
   V.texA = dev.createTexture({ size: [S, S, layers], format: 'rgba8unorm-srgb', usage: TU.RT | TU.TB, mipLevelCount: mips });
   V.texN = dev.createTexture({ size: [S, S, layers], format: 'rgba8unorm', usage: TU.RT | TU.TB, mipLevelCount: mips });
-  const msA = dev.createTexture({ size: [S, S], format: 'rgba8unorm-srgb', usage: TU.RT, sampleCount: 4 }), msN = dev.createTexture({ size: [S, S], format: 'rgba8unorm', usage: TU.RT, sampleCount: 4 });
-  const msD = dev.createTexture({ size: [S, S], format: 'depth32float', usage: TU.RT, sampleCount: 4 });
+  const msA = SAMPLE_COUNT === 4 ? dev.createTexture({ size: [S, S], format: 'rgba8unorm-srgb', usage: TU.RT, sampleCount: 4 }) : null;
+  const msN = SAMPLE_COUNT === 4 ? dev.createTexture({ size: [S, S], format: 'rgba8unorm', usage: TU.RT, sampleCount: 4 }) : null;
+  const msD = dev.createTexture({ size: [S, S], format: 'depth32float', usage: TU.RT, sampleCount: SAMPLE_COUNT });
   const code = wgslPP('veg_bake', SH_DEFS), mod = mkShader('veg_bake', SH_DEFS), bgls = reflectBGLs(code);
-  const pipe = dev.createRenderPipeline({
+  const pipeDesc = {
     layout: dev.createPipelineLayout({ bindGroupLayouts: bgls }), vertex: { module: mod, entryPoint: 'vs', buffers: [VLAYOUT] },
     fragment: { module: mod, entryPoint: 'fs', targets: [{ format: 'rgba8unorm-srgb' }, { format: 'rgba8unorm' }] },
     primitive: { cullMode: 'none' }, depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
-    multisample: { count: 4, alphaToCoverageEnabled: true },
-  });
+  };
+  if (SAMPLE_COUNT === 4) pipeDesc.multisample = { count: 4, alphaToCoverageEnabled: true };
+  const pipe = dev.createRenderPipeline(pipeDesc);
   const ub = new Float32Array(layers * 64), view = m4(), proj = m4(), vp = m4(), el = 8 * PI / 180;
   for (let a = 0; a < VEG_NA; a++) {
     const f = cpu[a].f32; let r = 0, h = 0; for (let i = 0; i < cpu[a].nv; i++) { r = Math.max(r, Math.hypot(f[i * 9], f[i * 9 + 2])); h = Math.max(h, f[i * 9 + 1]); }
@@ -162,16 +165,24 @@ function vegBakeImpostors(cpu) {
   const enc = dev.createCommandEncoder();
   for (let a = 0; a < VEG_NT; a++) for (let k = 0; k < 8; k++) {
     const L = a * 8 + k, lv = t => t.createView({ dimension: '2d', baseArrayLayer: L, arrayLayerCount: 1, baseMipLevel: 0, mipLevelCount: 1 });
+    const colorAttachments = SAMPLE_COUNT === 4 ? [
+      { view: msA.createView(), resolveTarget: lv(V.texA), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
+      { view: msN.createView(), resolveTarget: lv(V.texN), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }
+    ] : [
+      { view: lv(V.texA), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
+      { view: lv(V.texN), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }
+    ];
     const p = enc.beginRenderPass({
-      colorAttachments: [{ view: msA.createView(), resolveTarget: lv(V.texA), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.05, g: 0.1, b: 0.03, a: 0 } },
-      { view: msN.createView(), resolveTarget: lv(V.texN), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.5, g: 0.85, b: 0.5, a: 1 } }],
+      colorAttachments,
       depthStencilAttachment: { view: msD.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 },
     });
     p.setPipeline(pipe); p.setBindGroup(0, bg, [L * 256]); p.setVertexBuffer(0, V.meshes[a].vb); p.setIndexBuffer(V.meshes[a].ib, 'uint32'); p.drawIndexed(V.meshes[a].count); p.end();
   }
   dev.queue.submit([enc.finish()]);
   genMips(V.texA, 'rgba8unorm-srgb', layers); genMips(V.texN, 'rgba8unorm', layers);
-  msA.destroy(); msN.destroy(); msD.destroy();
+  if (msA) msA.destroy();
+  if (msN) msN.destroy();
+  msD.destroy();
 }
 
 const vegDrawable = {

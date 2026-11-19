@@ -7,6 +7,18 @@ const $ = id => document.getElementById(id);
 function uiInit() {
   UI.el = $('ui'); UI.tag = $('tag'); UI.res = $('res'); UI.b0 = $('b0'); UI.bDemo = $('bDemo'); UI.b1 = $('b1');
   hudInit(); uiWarmup();
+  const updateQualityBtns = () => {
+    ['low', 'med', 'high'].forEach(k => {
+      const b = $('q' + k.charAt(0).toUpperCase() + k.slice(1));
+      if (b) {
+        const isCurrent = currentQuality === k;
+        b.setAttribute('aria-pressed', String(isCurrent));
+        b.classList.toggle('active', isCurrent);
+        b.onclick = () => { if (currentQuality !== k) setQuality(k, true); };
+      }
+    });
+  };
+  updateQualityBtns();
   try { const b = +localStorage.getItem('napoli127-migliore'); if (b > 15 && b < 600) LAP[2] = b; } catch (e) { /* solo sessione corrente */ }
   UI.b0.onclick = () => { if (UI.st === ST.INICIO) { sndStart(); uiSet(ST.JOGO); } else uiResume(); };
   if (UI.bDemo) UI.bDemo.onclick = () => { if (UI.st === ST.INICIO) sndStart(); uiReplay(); };
@@ -52,6 +64,12 @@ function uiKey(e) {
   const c = e.code, st = UI.st;
   if (c === 'KeyM') { sndMute(!SND.mute); return; }
   if (c === 'KeyH') { UI.stats = !UI.stats; hudStats(UI.stats); if (st !== ST.BENCH) perfAttach(UI.stats, 12); return; }
+  if (c === 'KeyQ') {
+    const seq = ['low', 'med', 'high'];
+    const next = seq[(seq.indexOf(currentQuality) + 1) % seq.length];
+    setQuality(next, true);
+    return;
+  }
   if (st === ST.INICIO) {
     if (c === 'Enter' || c === 'Space') { e.preventDefault(); sndStart(); uiSet(ST.JOGO); }
     else if (c === 'KeyF') { sndStart(); uiReplay(); }
@@ -76,9 +94,9 @@ function benchEnd() {
     const r = perfReport(), stat = a => { a = a.slice(5).filter(x => x > 0).sort((p, q) => p - q); const n = a.length; return n ? { n, media: a.reduce((p, q) => p + q, 0) / n, p99: a[Math.min(n - 1, Math.round(0.99 * (n - 1)))], max: a[n - 1], acima: a.filter(x => Math.round(x * 10) > 167).length } : null; };
     const q = stat(r.raf), g = PERF.qs ? stat(r.gpu) : null, f = x => x.toFixed(2).replace('.', ',');
     benchStop(); gameRestart();
-    UI.bench = { quadros: r.n, quadro_ms: q, gpu_ms: g, fps: q ? 1000 / q.media : 0, acima_16_7: q ? q.acima : 0, gpu_acima_16_7: g ? g.acima : null, tick: 3600, resolucao: G.W + '×' + G.H };
+    UI.bench = { quadros: r.n, quadro_ms: q, gpu_ms: g, fps: q ? 1000 / q.media : 0, acima_16_7: q ? q.acima : 0, gpu_acima_16_7: g ? g.acima : null, tick: 3600, resolucao: G.W + '×' + G.H + ' (' + Q_CONF.label + ')' };
     const row = (n, s) => '<tr><th>' + n + '</th>' + (s ? '<td>' + f(s.media) + '</td><td>' + f(s.p99) + '</td><td>' + f(s.max) + '</td>' : '<td colspan=3>non disponibile su questo browser</td>') + '</tr>';
-    UI.res.innerHTML = '<h2>Benchmark · giro autonomo 60 s · ' + G.W + '×' + G.H + '</h2><table><tr><th></th><th>media (ms)</th><th>99° pct (ms)</th><th>max (ms)</th></tr>' + row('Tempo frame', q) + row('Tempo GPU', g) + '</table>' +
+    UI.res.innerHTML = '<h2>Benchmark · giro autonomo 60 s · ' + G.W + '×' + G.H + ' (' + Q_CONF.label + ')</h2><table><tr><th></th><th>media (ms)</th><th>99° pct (ms)</th><th>max (ms)</th></tr>' + row('Tempo frame', q) + row('Tempo GPU', g) + '</table>' +
       '<p>' + (q ? q.acima + ' su ' + q.n + ' frame oltre 16,7 ms' + (g ? ' · ' + g.acima + ' oltre 16,7 ms GPU' : '') + ' · ' + f(1000 / q.media) + ' FPS medi' : '') + '</p>';
   }, 400);
 }

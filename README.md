@@ -23,7 +23,8 @@ Realizzata sullo stesso motore WebGPU single-HTML della repository (zero libreri
   * Arredo di pista e luce mediterranea tardo-pomeridiana: barriere New Jersey in cemento, blocchi bianco-rossi e tricolore, portale di partenza/arrivo bianco-rosso, secondo arco su Via Caracciolo, maxischermo LED tralicciato fronte mare, Tribuna Principale A/B con tifosi in azzurro, gazebi dell’Event Village, balaustra con lampioni d’epoca e **7 telecamere TV panoramiche**.
 * **Interfaccia italiana & Hub aggiornato:**
   * Menu e cruscotto HUD in italiano (`GIRO` / `ULTIMO` / `MIGLIORE`, *Inizia gara*, *Guida autonoma (Demo)* con pilota automatico live e cambio telecamera automatico, *Benchmark 60 s*, pose fisse `1–6` per ispezionare livrea e tracciato, supporto tastiera e gamepad).
-  * Pagina principale (`/`) aggiornata con la panoramica del Gran Premio di Napoli, i riferimenti visivi e il selettore per tutti e quattro i circuiti.
+  * Pagina principale (`/`) e GitHub Pages focalizzate sul Gran Premio di Napoli con panoramica completa, riferimenti visivi, guida ai comandi, simulatore integrato e attribuzione al progetto base.
+  * Selettore qualità grafica **Bassa / Media / Alta** (tasto `Q` o interfaccia) con autorilevamento per GPU integrate (AMD Radeon R5, Intel HD/UHD) e scaling risoluzione per evitare cali di frame e timeout GPU.
 
 ---
 
@@ -97,6 +98,7 @@ La lista completa dei comandi è consultabile anche nella schermata iniziale di 
 |---|---|
 | Attiva / disattiva audio | `M` |
 | Statistiche di prestazioni (FPS / GPU) | `H` |
+| Qualità grafica (Bassa / Media / Alta) | `Q` |
 | Benchmark: giro automatico di 60 s con media e picco finale | `B` |
 | Guida autonoma (Demo) / giro automatico | `F` |
 | Pose fisse di telecamera (ispezione livrea e tracciato) | `1` – `6` |
@@ -128,5 +130,7 @@ Il formato del prompt originale prende ispirazione da [Abyssal Garden](https://g
 Il codice sorgente leggibile di ciascuna versione si trova nella rispettiva cartella `source`. Per rigenerare i singoli file `index.html` auto-contenuti è sufficiente **Node.js 18+** (o **Python 3** per Astra), senza pacchetti esterni:
 
 ```bash
+node napoli/source/build.mjs
 node fable/source/build.mjs
 node opus/source/build.mjs
+```

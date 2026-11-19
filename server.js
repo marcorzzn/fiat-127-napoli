@@ -13,7 +13,13 @@ export function createApp() {
     res.json({ ok: true });
   });
 
-  // Expose repository screenshots stored under .github/screenshots
+  // Expose repository screenshots stored under screenshots/ and fallback .github/screenshots
+  app.use(
+    '/screenshots',
+    express.static(path.join(__dirname, 'screenshots'), {
+      maxAge: '1h',
+    })
+  );
   app.use(
     '/screenshots',
     express.static(path.join(__dirname, '.github', 'screenshots'), {
@@ -25,6 +31,12 @@ export function createApp() {
   app.use(
     '/assets',
     express.static(path.join(__dirname, 'public', 'assets'), {
+      maxAge: '1h',
+    })
+  );
+  app.use(
+    '/public',
+    express.static(path.join(__dirname, 'public'), {
       maxAge: '1h',
     })
   );
@@ -59,6 +71,6 @@ if (isMain) {
   const host = '0.0.0.0';
   const app = createApp();
   app.listen(port, host, () => {
-    console.log(`Uno com escada rodando em http://${host}:${port}`);
+    console.log(`Gran Premio di Napoli attivo su http://${host}:${port}`);
   });
 }

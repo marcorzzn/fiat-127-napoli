@@ -1,9 +1,9 @@
 {
-  "name": "uno-com-escada",
+  "name": "fiat-127-napoli",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Fiat Uno Mille EP 1996 com escada no teto — três circuitos 3D WebGPU no navegador.",
+  "description": "Gran Premio di Napoli · Fiat 127 Napoli 1926 — simulatore di guida 3D WebGPU sul Lungomare Caracciolo.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",

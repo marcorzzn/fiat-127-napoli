@@ -77,7 +77,7 @@ async function main() {
         '<p class="err-eyebrow">Gran Premio di Napoli · Fiat 127 Napoli 1926</p>' +
         '<h1 class="err-title">WebGPU richiesto per il circuito 3D</h1>' +
         '<p class="err-body">Questo circuito usa il motore grafico WebGPU nativo del progetto (' + safeMsg + '). Apri la pagina su Chrome, Edge o Safari 18+ con accelerazione hardware GPU abilitata per correre sul Lungomare Caracciolo.</p>' +
-        '<a class="err-link" href="/">← Torna alla panoramica</a>' +
+        '<a class="err-link" href="../">← Torna alla panoramica</a>' +
         '</div>';
     }
     console.error(e); GAME.error = e.message;

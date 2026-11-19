@@ -2,6 +2,47 @@
 const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
+
+// Preset di qualità grafica calibrati per AMD Radeon R5 e hardware modesto
+const QUALITY_PRESETS = {
+  low:  { label: 'Bassa', scale: 0.60, msaa: 1, shadow: 512,  envRes: 256, envMips: 6, facesPerFrame: 1 },
+  med:  { label: 'Media', scale: 0.75, msaa: 1, shadow: 1024, envRes: 256, envMips: 6, facesPerFrame: 1 },
+  high: { label: 'Alta',  scale: 1.00, msaa: 4, shadow: 2048, envRes: 512, envMips: 7, facesPerFrame: 2 },
+};
+
+function detectDefaultQuality(adapterInfo) {
+  try {
+    const saved = localStorage.getItem('napoli_quality');
+    if (saved && QUALITY_PRESETS[saved]) return saved;
+  } catch (e) {}
+  const param = Q.get('quality');
+  if (param && QUALITY_PRESETS[param]) return param;
+
+  const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
+  if (/radeon\s*r[2-5]|intel.*(hd|uhd)|swiftshader|llvmpipe/.test(desc)) {
+    return 'low';
+  }
+  return 'med';
+}
+
+let currentQuality = 'med';
+let Q_CONF = QUALITY_PRESETS.med;
+
+function setQuality(qKey, reload = true) {
+  if (!QUALITY_PRESETS[qKey]) return;
+  try {
+    localStorage.setItem('napoli_quality', qKey);
+  } catch (e) {}
+  if (reload) {
+    const url = new URL(location.href);
+    url.searchParams.set('quality', qKey);
+    if (typeof UI !== 'undefined' && UI.st === ST.JOGO) {
+      url.searchParams.set('autostart', '1');
+    }
+    location.href = url.toString();
+  }
+}
+
 // Jogo aberto por uma pessoa (tela de início, painel, som) × ferramenta (captura, poses, teste, medição): as ferramentas de
 // trabalho/ usam ?cap, ?perf, ?replay ou rodam num navegador automatizado, e para elas nada muda — sem menu, sem painel.
 // ?ui=1 força o jogo completo (é como os testes de menu, entrada e som o abrem); ?ui=0 força o modo de ferramenta.
@@ -14,6 +55,13 @@ async function gpuInit() {
   if (!navigator.gpu) throw new Error('WebGPU non disponibile in questo browser.');
   const ad = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
   if (!ad) throw new Error('Nessun adattatore GPU WebGPU disponibile.');
+  let adapterInfo = null;
+  try {
+    adapterInfo = ad.info || (ad.requestAdapterInfo ? await ad.requestAdapterInfo() : null);
+  } catch (e) {}
+  currentQuality = detectDefaultQuality(adapterInfo);
+  Q_CONF = QUALITY_PRESETS[currentQuality];
+
   const feats = [];
   // 'timestamp-query' é pedido na medição de desempenho (?perf) e no jogo aberto por uma pessoa (benchmark e estatísticas
   // mostram o tempo de GPU quando o navegador permite); ?nots desliga. Captura, poses e testes continuam sem o recurso.
@@ -27,9 +75,10 @@ async function gpuInit() {
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
   const res = (Q.get('res') || '').split('x');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr);
-  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr);
+  const dpr = Math.min(window.devicePixelRatio || 1, currentQuality === 'high' ? 2 : 1);
+  const qScale = Q_CONF.scale;
+  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr * qScale);
+  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr * qScale);
   G.W = clamp(G.W & ~1, 320, 5120); G.H = clamp(G.H & ~1, 180, 2880);
   G.canvas.width = G.W; G.canvas.height = G.H;
   G.ctx = G.canvas.getContext('webgpu');

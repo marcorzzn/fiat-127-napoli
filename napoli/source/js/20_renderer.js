@@ -1,5 +1,7 @@
 // Núcleo do renderizador diferido: recursos, uniformes de quadro, famílias de material e o grafo de passes.
-const SHADOW_RES = 2048, SHADOW_S_RES = 4096, ENV_RES = 512, ENV_MIPS = 7, SKY_W = 4096, SKY_H = 1024, VOL_DIST = 220;
+const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = currentQuality === 'low' ? 1024 : currentQuality === 'med' ? 2048 : 4096;
+const ENV_RES = Q_CONF.envRes || (currentQuality === 'low' ? 256 : 512), ENV_MIPS = Q_CONF.envMips || (currentQuality === 'low' ? 6 : 7);
+const SKY_W = currentQuality === 'low' ? 2048 : 4096, SKY_H = currentQuality === 'low' ? 512 : 1024, VOL_DIST = 220;
 const SKY_EL0 = -0.14, SKY_ELR = PI / 2 + 0.14;
 const SH_DEFS = { SHADOW_RES: SHADOW_RES + '.0', ENV_MIPS: ENV_MIPS + '.0', ENV_MIP_K: (ENV_RES * 2 / (PI * 1.5)).toFixed(2), VOL_DIST: VOL_DIST + '.0', SKY_EL0: SKY_EL0.toFixed(5), SKY_ELR: SKY_ELR.toFixed(5) };
 const KIND = { GBUF: 0, SHADOW: 1, CUBE: 2 };
@@ -315,10 +317,10 @@ function renderFrame() {
   for (let i = 0; i < 3; i++) cascadeSetup(i);
   setPass(0, c.vpJ, c.pos);
   for (let i = 0; i < 3; i++) setPass(1 + i, R.casc.vp[i], c.pos);
-  // uma face do cubemap de ambiente por quadro (ciclo completo a cada 6 quadros)
-  // duas faces do cubemap de ambiente por quadro, cada uma na posição atual do carro (ciclo completo a cada 3 quadros)
-  const face = (R.frameIdx * 2) % 6; R.cube.cur.set(R.cube.pos);
-  for (let k = 0; k < 2; k++) { cubeSetup(face + k); setPass(5 + face + k, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
+  // faces do cubemap de ambiente por quadro (ciclo completo adaptado à qualidade)
+  const nFaces = Q_CONF.facesPerFrame || (currentQuality === 'low' ? 1 : 2);
+  const face = (R.frameIdx * nFaces) % 6; R.cube.cur.set(R.cube.pos);
+  for (let k = 0; k < nFaces; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
   dev.queue.writeBuffer(R.frameBuf, 0, FR.data);
   dev.queue.writeBuffer(R.passBuf, 0, R.passData, 0, 13 * 64);
   dev.queue.writeBuffer(R.objBuf, 0, R.objData, 0, R.objCount * 64);
@@ -330,8 +332,8 @@ function renderFrame() {
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();
   }
   // faces do cubemap de ambiente
-  for (let k = 0; k < 2; k++) {
-    const f = face + k; cubeSetup(f);
+  for (let k = 0; k < nFaces; k++) {
+    const f = (face + k) % 6; cubeSetup(f);
     const p = apiPass(enc, D.cube[f]);
     cubeSky(p, 11 + k);
     drawAll(p, ctxFrom(KIND.CUBE, R.cube.vp, 6, R.cube.cur, 0), 5 + f, R.passBGCube); p.end();

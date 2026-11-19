@@ -22,6 +22,12 @@ const GRASS = {
 };
 function grassBuild() {
   const dev = G.dev, V = VEG;
+  if (currentQuality === 'low') {
+    GRASS.rings = [
+      { cell: 0.25, bs: 36, B: 8, K: 1, q: [0, 2, 22, 30], w: 0.02, prev: -1 },
+      { cell: 0.6, bs: 48, B: 10, K: 0, q: [18, 28, 80, 110], w: 0.6, prev: 0 },
+    ];
+  }
   // máscara de mata (2 m/texel) na área dos mapas do mundo
   const fw = Math.ceil(HF.w / 2), fh = Math.ceil(HF.h / 2), fd = new Uint8Array(fw * fh);
   for (let j = 0; j < fh; j++) for (let i = 0; i < fw; i++) fd[j * fw + i] = Math.round(255 * forestAt(HF.x0 + i * 2, HF.z0 + j * 2));

@@ -27,9 +27,7 @@ test('serves root launcher page and health endpoint', async () => {
     const html = await rootRes.text();
     assert.match(html, /Gran Premio di Napoli/);
     assert.match(html, /Fiat 127 Napoli 1926/);
-    assert.match(html, /Fable 5\.2/);
-    assert.match(html, /Opus 5\.5/);
-    assert.match(html, /GPT-6\.2 Astra/);
+    assert.match(html, /ViktorKav/);
   });
 });
 
