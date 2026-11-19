@@ -1865,7 +1865,7 @@ fn altOf(p: vec3f) -> f32 { return length(p + vec3f(0.0, RP, 0.0)) - RP; }
     // cúmulos
     let t0 = raySphere(o, d, RP + CB).y; let t1 = min(raySphere(o, d, RP + CT).y, 90000.0);
     if (t1 > t0) {
-      const NS = 96; let dt = (t1 - t0) / f32(NS);
+      const NS = 48; let dt = (t1 - t0) / f32(NS);
       let jit = hash21(in.pos.xy);
       var S = vec3f(0.0); var tw = 0.0; var ww = 0.0;
       let cs = dot(d, sun);
@@ -3808,7 +3808,7 @@ function worldMapBuild() {
 // Núcleo do renderizador diferido: recursos, uniformes de quadro, famílias de material e o grafo de passes.
 const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = (currentQuality === 'low' || currentQuality === 'veryLow') ? 1024 : currentQuality === 'med' ? 2048 : 4096;
 const ENV_RES = Q_CONF.envRes || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 256 : 512), ENV_MIPS = Q_CONF.envMips || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 6 : 7);
-const SKY_W = (currentQuality === 'low' || currentQuality === 'veryLow') ? 2048 : 4096, SKY_H = (currentQuality === 'low' || currentQuality === 'veryLow') ? 512 : 1024, VOL_DIST = 220;
+const SKY_W = 2048, SKY_H = 512, VOL_DIST = 220;
 const SKY_EL0 = -0.14, SKY_ELR = PI / 2 + 0.14;
 const SH_DEFS = { SHADOW_RES: SHADOW_RES + '.0', ENV_MIPS: ENV_MIPS + '.0', ENV_MIP_K: (ENV_RES * 2 / (PI * 1.5)).toFixed(2), VOL_DIST: VOL_DIST + '.0', SKY_EL0: SKY_EL0.toFixed(5), SKY_ELR: SKY_ELR.toFixed(5) };
 const KIND = { GBUF: 0, SHADOW: 1, CUBE: 2 };

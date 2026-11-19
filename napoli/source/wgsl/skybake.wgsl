@@ -69,7 +69,7 @@ fn altOf(p: vec3f) -> f32 { return length(p + vec3f(0.0, RP, 0.0)) - RP; }
     // cúmulos
     let t0 = raySphere(o, d, RP + CB).y; let t1 = min(raySphere(o, d, RP + CT).y, 90000.0);
     if (t1 > t0) {
-      const NS = 96; let dt = (t1 - t0) / f32(NS);
+      const NS = 48; let dt = (t1 - t0) / f32(NS);
       let jit = hash21(in.pos.xy);
       var S = vec3f(0.0); var tw = 0.0; var ww = 0.0;
       let cs = dot(d, sun);
