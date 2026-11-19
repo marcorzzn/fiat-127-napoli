@@ -1,11 +1,36 @@
-// Mappe del mondo GPU per il Circuito del Lungomare di Napoli: altezza (r32float) e zone (rgba8).
+// Mappe del mondo GPU per il Circuito del Lungomare di Napoli: altezza (r32float o r16float) e zone (rgba8).
 // R = distanza dal bordo asfalto | G = 0 (circuito cittadino senza ghiaia) | B = parco/vegetazione | A = pavimentazione lungomare/piazza/paddock
 const WM = { height: null, zone: null, x0: 0, z0: 0, sx: 1, sz: 1, zw: 0, zh: 0, zdata: null };
+
+function f32ArrayToF16(src) {
+  if (typeof Float16Array !== 'undefined') return new Float16Array(src);
+  const dst = new Uint16Array(src.length);
+  const f32 = new Float32Array(1);
+  const u32 = new Uint32Array(f32.buffer);
+  for (let i = 0; i < src.length; i++) {
+    f32[0] = src[i];
+    const u = u32[0];
+    const sign = (u >>> 16) & 0x8000;
+    let exp = ((u >>> 23) & 0xff) - 127 + 15;
+    let mant = u & 0x7fffff;
+    if (exp <= 0) { dst[i] = sign; }
+    else if (exp >= 31) { dst[i] = sign | 0x7c00; }
+    else { dst[i] = sign | (exp << 10) | (mant >>> 13); }
+  }
+  return dst;
+}
+
 function worldMapBuild() {
   const dev = G.dev;
   WM.x0 = HF.x0; WM.z0 = HF.z0; WM.sx = HF.w - 1; WM.sz = HF.h - 1;
-  WM.height = mkTex(HF.w, HF.h, 'r32float', TU.TB | TU.CD);
-  dev.queue.writeTexture({ texture: WM.height }, HF.d, { bytesPerRow: HF.w * 4 }, [HF.w, HF.h]);
+  if (G.hasF32Filter) {
+    WM.height = mkTex(HF.w, HF.h, 'r32float', TU.TB | TU.CD);
+    dev.queue.writeTexture({ texture: WM.height }, HF.d, { bytesPerRow: HF.w * 4 }, [HF.w, HF.h]);
+  } else {
+    WM.height = mkTex(HF.w, HF.h, 'r16float', TU.TB | TU.CD);
+    const f16 = f32ArrayToF16(HF.d);
+    dev.queue.writeTexture({ texture: WM.height }, f16, { bytesPerRow: HF.w * 2 }, [HF.w, HF.h]);
+  }
   const zw = WM.zw = (HF.w - 1) * 2 + 1, zh = WM.zh = (HF.h - 1) * 2 + 1, z = WM.zdata = new Uint8Array(zw * zh * 4), loc = new Float64Array(4);
   const enc = (v, lo, hi) => Math.round(sat((v - lo) / (hi - lo)) * 255);
   for (let j = 0; j < zh; j++) for (let i = 0; i < zw; i++) {

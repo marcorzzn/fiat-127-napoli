@@ -2950,7 +2950,7 @@ function setQuality(qKey, reload = true) {
 GAME.ui = Q.has('ui') ? Q.get('ui') !== '0' : !(Q.has('cap') || Q.has('perf') || Q.has('replay') || Q.has('auto') || Q.has('scene') || navigator.webdriver);
 // Tempo em vetor tipado (escrita por quadro sem caixa na heap): RT[0] = tempo acumulado (s), RT[1] = dt do quadro renderizado, RT[2] = dt pedido ao jogo
 const RT = new Float64Array([0, 1 / 60, 1 / 60, 0]);   // RT[3] = intervalo real do último quadro (ms), para as estatísticas
-const G = { dev: null, ctx: null, fmt: 'bgra8unorm', W: 0, H: 0, hasTS: false, canvas: null };
+const G = { dev: null, ctx: null, fmt: 'bgra8unorm', W: 0, H: 0, hasTS: false, hasF32Filter: false, canvas: null };
 
 async function gpuInit() {
   if (!navigator.gpu) throw new Error('WebGPU non disponibile in questo browser.');
@@ -2967,16 +2967,10 @@ async function gpuInit() {
   // 'timestamp-query' é pedido na medição de desempenho (?perf) e no jogo aberto por uma pessoa (benchmark e estatísticas
   // mostram o tempo de GPU quando o navegador permite); ?nots desliga. Captura, poses e testes continuam sem o recurso.
   for (const f of ['float32-filterable', 'rg11b10ufloat-renderable'].concat((Q.has('perf') || GAME.ui) && !Q.has('nots') ? ['timestamp-query'] : [])) if (ad.features.has(f)) feats.push(f);
-  if (!ad.features.has('float32-filterable')) throw new Error('GPU senza supporto float32-filterable.');
+  G.hasF32Filter = ad.features.has('float32-filterable');
   G.hasTS = feats.includes('timestamp-query');
-  const reqLimits = {};
-  if (ad.limits.maxColorAttachmentBytesPerSample) reqLimits.maxColorAttachmentBytesPerSample = Math.min(64, ad.limits.maxColorAttachmentBytesPerSample);
-  if (ad.limits.maxBufferSize) reqLimits.maxBufferSize = ad.limits.maxBufferSize;
-  if (ad.limits.maxTextureDimension2D) reqLimits.maxTextureDimension2D = Math.min(8192, ad.limits.maxTextureDimension2D);
-  if (ad.limits.maxSampledTexturesPerShaderStage) reqLimits.maxSampledTexturesPerShaderStage = Math.min(16, ad.limits.maxSampledTexturesPerShaderStage);
   G.dev = await ad.requestDevice({
-    requiredFeatures: feats,
-    requiredLimits: reqLimits
+    requiredFeatures: feats
   });
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
@@ -3777,14 +3771,39 @@ function forestAt(x, z) {
 }
 
 // ---- 11_worldmap.js
-// Mappe del mondo GPU per il Circuito del Lungomare di Napoli: altezza (r32float) e zone (rgba8).
+// Mappe del mondo GPU per il Circuito del Lungomare di Napoli: altezza (r32float o r16float) e zone (rgba8).
 // R = distanza dal bordo asfalto | G = 0 (circuito cittadino senza ghiaia) | B = parco/vegetazione | A = pavimentazione lungomare/piazza/paddock
 const WM = { height: null, zone: null, x0: 0, z0: 0, sx: 1, sz: 1, zw: 0, zh: 0, zdata: null };
+
+function f32ArrayToF16(src) {
+  if (typeof Float16Array !== 'undefined') return new Float16Array(src);
+  const dst = new Uint16Array(src.length);
+  const f32 = new Float32Array(1);
+  const u32 = new Uint32Array(f32.buffer);
+  for (let i = 0; i < src.length; i++) {
+    f32[0] = src[i];
+    const u = u32[0];
+    const sign = (u >>> 16) & 0x8000;
+    let exp = ((u >>> 23) & 0xff) - 127 + 15;
+    let mant = u & 0x7fffff;
+    if (exp <= 0) { dst[i] = sign; }
+    else if (exp >= 31) { dst[i] = sign | 0x7c00; }
+    else { dst[i] = sign | (exp << 10) | (mant >>> 13); }
+  }
+  return dst;
+}
+
 function worldMapBuild() {
   const dev = G.dev;
   WM.x0 = HF.x0; WM.z0 = HF.z0; WM.sx = HF.w - 1; WM.sz = HF.h - 1;
-  WM.height = mkTex(HF.w, HF.h, 'r32float', TU.TB | TU.CD);
-  dev.queue.writeTexture({ texture: WM.height }, HF.d, { bytesPerRow: HF.w * 4 }, [HF.w, HF.h]);
+  if (G.hasF32Filter) {
+    WM.height = mkTex(HF.w, HF.h, 'r32float', TU.TB | TU.CD);
+    dev.queue.writeTexture({ texture: WM.height }, HF.d, { bytesPerRow: HF.w * 4 }, [HF.w, HF.h]);
+  } else {
+    WM.height = mkTex(HF.w, HF.h, 'r16float', TU.TB | TU.CD);
+    const f16 = f32ArrayToF16(HF.d);
+    dev.queue.writeTexture({ texture: WM.height }, f16, { bytesPerRow: HF.w * 2 }, [HF.w, HF.h]);
+  }
   const zw = WM.zw = (HF.w - 1) * 2 + 1, zh = WM.zh = (HF.h - 1) * 2 + 1, z = WM.zdata = new Uint8Array(zw * zh * 4), loc = new Float64Array(4);
   const enc = (v, lo, hi) => Math.round(sat((v - lo) / (hi - lo)) * 255);
   for (let j = 0; j < zh; j++) for (let i = 0; i < zw; i++) {

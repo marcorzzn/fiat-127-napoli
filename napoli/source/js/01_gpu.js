@@ -50,7 +50,7 @@ function setQuality(qKey, reload = true) {
 GAME.ui = Q.has('ui') ? Q.get('ui') !== '0' : !(Q.has('cap') || Q.has('perf') || Q.has('replay') || Q.has('auto') || Q.has('scene') || navigator.webdriver);
 // Tempo em vetor tipado (escrita por quadro sem caixa na heap): RT[0] = tempo acumulado (s), RT[1] = dt do quadro renderizado, RT[2] = dt pedido ao jogo
 const RT = new Float64Array([0, 1 / 60, 1 / 60, 0]);   // RT[3] = intervalo real do último quadro (ms), para as estatísticas
-const G = { dev: null, ctx: null, fmt: 'bgra8unorm', W: 0, H: 0, hasTS: false, canvas: null };
+const G = { dev: null, ctx: null, fmt: 'bgra8unorm', W: 0, H: 0, hasTS: false, hasF32Filter: false, canvas: null };
 
 async function gpuInit() {
   if (!navigator.gpu) throw new Error('WebGPU non disponibile in questo browser.');
@@ -67,16 +67,10 @@ async function gpuInit() {
   // 'timestamp-query' é pedido na medição de desempenho (?perf) e no jogo aberto por uma pessoa (benchmark e estatísticas
   // mostram o tempo de GPU quando o navegador permite); ?nots desliga. Captura, poses e testes continuam sem o recurso.
   for (const f of ['float32-filterable', 'rg11b10ufloat-renderable'].concat((Q.has('perf') || GAME.ui) && !Q.has('nots') ? ['timestamp-query'] : [])) if (ad.features.has(f)) feats.push(f);
-  if (!ad.features.has('float32-filterable')) throw new Error('GPU senza supporto float32-filterable.');
+  G.hasF32Filter = ad.features.has('float32-filterable');
   G.hasTS = feats.includes('timestamp-query');
-  const reqLimits = {};
-  if (ad.limits.maxColorAttachmentBytesPerSample) reqLimits.maxColorAttachmentBytesPerSample = Math.min(64, ad.limits.maxColorAttachmentBytesPerSample);
-  if (ad.limits.maxBufferSize) reqLimits.maxBufferSize = ad.limits.maxBufferSize;
-  if (ad.limits.maxTextureDimension2D) reqLimits.maxTextureDimension2D = Math.min(8192, ad.limits.maxTextureDimension2D);
-  if (ad.limits.maxSampledTexturesPerShaderStage) reqLimits.maxSampledTexturesPerShaderStage = Math.min(16, ad.limits.maxSampledTexturesPerShaderStage);
   G.dev = await ad.requestDevice({
-    requiredFeatures: feats,
-    requiredLimits: reqLimits
+    requiredFeatures: feats
   });
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
