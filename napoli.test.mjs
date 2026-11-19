@@ -131,7 +131,7 @@ test('Built /napoli/index.html single-HTML WebGPU bundle parses cleanly and embe
   // Verify that personal hardware references are completely removed and presets use native sharpness
   assert.ok(!html.includes('Radeon R5'), 'UI must not reference personal hardware');
   assert.ok(!html.includes('Bassa (Radeon R5)'), 'Quality button must be generic "Bassa"');
-  assert.ok(html.includes('id="qVeryLow">Molto Bassa</button>'), 'Molto Bassa button must be present');
+  assert.ok(html.includes('id="qVeryLow">Molto bassa</button>'), 'Molto bassa button must be present');
   assert.ok(html.includes('id="qLow">Bassa</button>'), 'Bassa button must be cleanly labeled');
   assert.ok(html.includes('veryLow:'), 'veryLow preset must be configured in engine');
   assert.ok(!html.includes('scale: 0.60'), 'Canvas downscaling must be replaced with native 1:1 crisp rendering');

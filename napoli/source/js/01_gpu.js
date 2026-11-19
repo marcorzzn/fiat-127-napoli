@@ -3,9 +3,9 @@ const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
 
-// Preset di qualità grafica: Molto Bassa (ultra-leggera 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
+// Preset di qualità grafica: Molto bassa (ultra-leggera a 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
-  veryLow: { label: 'Molto Bassa', dpr: 1.0, maxH: 720, shadow: 512, cascades: 0, vogelN: 4, envRes: 128, envMips: 4, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
+  veryLow: { label: 'Molto bassa', dpr: 1.0, maxH: 720, shadow: 512, cascades: 0, vogelN: 4, envRes: 128, envMips: 4, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
   low:     { label: 'Bassa',       dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: true,  aoSamples: 4,  volSamples: 4,  ssr: false, motionBlur: false, bloom: true,  bloomLevels: 3, vegShadow: false, grass: false },
   med:     { label: 'Media',       dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ao: true,  aoSamples: 8,  volSamples: 8,  ssr: false, motionBlur: true,  bloom: true,  bloomLevels: 4, vegShadow: true,  grass: true },
   high:    { label: 'Alta',        dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ao: true,  aoSamples: 14, volSamples: 20, ssr: true,  motionBlur: true,  bloom: true,  bloomLevels: 6, vegShadow: true,  grass: true },
