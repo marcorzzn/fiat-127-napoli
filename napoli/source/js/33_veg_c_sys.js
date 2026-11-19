@@ -1,6 +1,6 @@
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low' && currentQuality !== 'veryLow',
+  on: true, onMesh: true, onLeaf: currentQuality !== 'veryLow', onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low' && currentQuality !== 'veryLow',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },
@@ -252,7 +252,7 @@ const vegDrawable = {
     }
     pass.setVertexBuffer(0, V.instBuf);
     const NS = V.NS, SUP = V.SUP, scx = clamp(Math.floor((camx - V.x0) / SUP), 0, NS - 1), scz = clamp(Math.floor((camz - V.z0) / SUP), 0, NS - 1);
-    const all = shadow && ctx.cascade === 3, maxR = all || kind === KIND.GBUF ? (currentQuality === 'veryLow' ? 5 : NS) : 3;
+    const all = shadow && ctx.cascade === 3, maxR = all || kind === KIND.GBUF ? (currentQuality === 'veryLow' ? 3 : (currentQuality === 'low' ? 6 : NS)) : 3;
     for (let r = 0; r < maxR; r++) for (let dz = -r; dz <= r; dz++) {
       const stp = (dz === -r || dz === r) ? 1 : 2 * r;
       for (let dx = -r; dx <= r; dx += stp || 1) {

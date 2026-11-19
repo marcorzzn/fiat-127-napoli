@@ -57,7 +57,8 @@ function fxStep() {
     // partículas
     const speed = Math.sqrt(V.vx * V.vx + V.vy * V.vy);
     const rate = hard ? (sl > 0.62 ? (sl - 0.62) * 1.0 * Math.min(1, speed * 0.1) : 0) : Math.min(1, speed / 14) * 0.3;
-    for (let rep = 0; rep < 2; rep++) if (rate > 0 && fxRnd() < rate * (rep ? 0.6 : 1) * 65536) {
+    const maxRep = currentQuality === 'veryLow' ? 1 : 2;
+    for (let rep = 0; rep < maxRep; rep++) if (rate > 0 && fxRnd() < rate * (rep ? 0.6 : 1) * 65536) {
       const q = FX.pNext * 12, p = FX.p, K = 1 / 65536; FX.pNext = (FX.pNext + 1) % PT_N;
       const c = Math.cos(V.yaw), s = Math.sin(V.yaw), wvx = V.vx * c - V.vy * s, wvz = V.vx * s + V.vy * c;
       p[q] = x + ((fxRnd() * K) - 0.5) * 0.25; p[q + 1] = y + 0.08; p[q + 2] = z + ((fxRnd() * K) - 0.5) * 0.25;

@@ -5,7 +5,7 @@ const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap
 
 // Preset di qualità grafica: Molto Bassa (ultra-leggera 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
-  veryLow: { label: 'Molto Bassa', dpr: 1.0, shadow: 512,  cascades: 0, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
+  veryLow: { label: 'Molto Bassa', dpr: 1.0, maxH: 720, shadow: 512, cascades: 0, vogelN: 4, envRes: 128, envMips: 4, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
   low:     { label: 'Bassa',       dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: true,  aoSamples: 4,  volSamples: 4,  ssr: false, motionBlur: false, bloom: true,  bloomLevels: 3, vegShadow: false, grass: false },
   med:     { label: 'Media',       dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ao: true,  aoSamples: 8,  volSamples: 8,  ssr: false, motionBlur: true,  bloom: true,  bloomLevels: 4, vegShadow: true,  grass: true },
   high:    { label: 'Alta',        dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ao: true,  aoSamples: 14, volSamples: 20, ssr: true,  motionBlur: true,  bloom: true,  bloomLevels: 6, vegShadow: true,  grass: true },
@@ -83,9 +83,18 @@ async function gpuInit() {
   const res = (Q.get('res') || '').split('x');
   const maxDpr = currentQuality === 'high' ? 1.5 : 1.0;
   const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr);
-  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr);
-  G.W = clamp(G.W & ~1, 320, 5120); G.H = clamp(G.H & ~1, 180, 2880);
+  let w = Math.round(innerWidth * dpr);
+  let h = Math.round(innerHeight * dpr);
+  if (res.length === 2) {
+    w = +res[0];
+    h = +res[1];
+  } else if (Q_CONF.maxH && h > Q_CONF.maxH) {
+    const scale = Q_CONF.maxH / h;
+    w = Math.round(w * scale);
+    h = Q_CONF.maxH;
+  }
+  G.W = clamp(w & ~1, 320, 5120);
+  G.H = clamp(h & ~1, 180, 2880);
   G.canvas.width = G.W; G.canvas.height = G.H;
   G.ctx = G.canvas.getContext('webgpu');
   G.fmt = navigator.gpu.getPreferredCanvasFormat();
