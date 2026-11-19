@@ -65,6 +65,7 @@ async function main() {
     setMsg(''); const hint = document.getElementById('hint'); if (hint) setTimeout(() => { hint.style.opacity = 0; }, 9000);
     if (GAME.ui) uiInit();
     GAME.ready = true;
+    document.title = 'PRONTO_IN_PISTA · Gran Premio di Napoli';
     if (!GAME.capture) requestAnimationFrame(rafLoop);
   } catch (e) {
     document.body.dataset.state = 'webgpu-unavailable';
