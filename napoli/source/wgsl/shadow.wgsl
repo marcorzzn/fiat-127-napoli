@@ -25,6 +25,13 @@ fn shadowStatic(wp: vec3f, n: vec3f, phi: f32, soft: f32) -> f32 {
 // visibilidade do sol em wp (normal n, pixel px para o ruído). nl = N·L para o viés.
 fn sunShadow(wp: vec3f, n: vec3f, px: vec2f, nl: f32) -> f32 { return sunShadowK(wp, n, px, nl, 1.0); }
 // rot = 0: núcleo fixo, sem rotação por pixel (para superfícies com verniz: o brilho especular amplificava o ruído em trama)
+#ifdef NO_SHADOW
+fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
+  let noise = ign(px, F.misc.y);
+  let phi = noise * 6.2831853 * rot;
+  return shadowStatic(wp, n, phi, 1.6);
+}
+#else
 fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   let noise = ign(px, F.misc.y);
   let phi = noise * 6.2831853 * rot;
@@ -46,3 +53,4 @@ fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   }
   return acc + (1.0 - wAcc) * shadowStatic(wp, n, phi, 1.6);
 }
+#endif

@@ -1,5 +1,5 @@
 // Passes de tela cheia: meia resolução (AO + névoa), iluminação, transparentes, TAA, desfoque de movimento, bloom, saída.
-const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels || 6;
+const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels !== undefined ? Q_CONF.bloomLevels : 6;
 function postInit() {
   const dev = G.dev, T = R.tex, V = R.view, W = G.W, H = G.H, D = R.pd, P = R.post = {};
   const HDR = 'rgba16float';
@@ -10,7 +10,12 @@ function postInit() {
   D.half = mkPassDesc(1, null, false, 'half'); D.half.colorAttachments[0].view = V.half[0];
   D.blurH = mkPassDesc(1, null, false, 'blurH'); D.blurH.colorAttachments[0].view = V.half[1];
   D.blurV = mkPassDesc(1, null, false, 'blurV'); D.blurV.colorAttachments[0].view = V.half[2];
-  const lightDefs = Object.assign({ VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades || 3) }, Q_CONF.ssr ? { SSR: '' } : {});
+  const lightDefs = Object.assign(
+    { VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades !== undefined ? Q_CONF.cascades : 3) },
+    Q_CONF.cascades === 0 ? { NO_SHADOW: '' } : {},
+    Q_CONF.ao === false ? { NO_AO: '' } : {},
+    Q_CONF.ssr ? { SSR: '' } : {}
+  );
   P.light = mkPost('light', lightDefs, [HDR]);
   P.lightBG = [0, 1].map(i => bgOf(P.light, 0, [R.frameBuf, V.gA, V.gB, V.gC, V.depth, V.shadow, V.shadowS, R.sCmp, V.half[2], V.env, V.sky, R.sClamp, R.sSky, V.hist[i]]));
   P.taa = mkPost('taa', {}, [HDR, 'rg16float']);
@@ -28,7 +33,8 @@ function postInit() {
   D.mb = mkPassDesc(1, null, false, 'mblur'); D.mb.colorAttachments[0].view = V.mb;
   // bloom
   T.bl = []; V.bl = []; D.blDown = []; D.blUp = []; P.blDownBG = []; P.blUpBG = [];
-  for (let i = 0; i < BLOOM_N; i++) { T.bl[i] = mkTex(Math.max(2, W >> (i + 1)), Math.max(2, H >> (i + 1)), HDR); V.bl[i] = T.bl[i].createView(); }
+  const bloomCount = Math.max(1, BLOOM_N);
+  for (let i = 0; i < bloomCount; i++) { T.bl[i] = mkTex(Math.max(2, W >> (i + 1)), Math.max(2, H >> (i + 1)), HDR); V.bl[i] = T.bl[i].createView(); }
   P.blFirst = mkPost('bloom', { FIRST: '' }, [HDR]); P.blDown = mkPost('bloom', {}, [HDR]);
   P.blUp = mkPost('bloom', { UP: '', UPW: '1.0' }, [{ format: HDR, blend: { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } } }]);
   for (let i = 0; i < BLOOM_N; i++) {
@@ -42,9 +48,9 @@ function postInit() {
   // exposição
   T.ex = [mkTex(1, 1, 'r16float'), mkTex(1, 1, 'r16float')]; V.ex = T.ex.map(t => t.createView());
   P.expo = mkPost('expo', {}, ['r16float']);
-  P.expoBG = [0, 1].map(i => bgOf(P.expo, 0, [R.frameBuf, V.bl[BLOOM_N - 1], V.ex[i], R.sClamp]));
+  P.expoBG = [0, 1].map(i => bgOf(P.expo, 0, [R.frameBuf, V.bl[bloomCount - 1], V.ex[i], R.sClamp]));
   D.expo = [0, 1].map(i => { const d = mkPassDesc(1, null, false, 'expo'); d.colorAttachments[0].view = V.ex[i]; return d; });
-  P.final = mkPost('final', {}, [G.fmt]);
+  P.final = mkPost('final', Q_CONF.bloom === false ? { NO_BLOOM: '' } : {}, [G.fmt]);
   P.finalBG = [0, 1].map(i => bgOf(P.final, 0, [R.frameBuf, V.mb, V.bl[0], V.ex[i], R.sClamp, V.depth]));
   D.final = mkPassDesc(1, null, false, 'final');
   // cubemap: céu + pré-filtro
@@ -82,7 +88,11 @@ function postFrame(enc) {
   const P = R.post, D = R.pd, cur = R.frameIdx & 1, prev = cur ^ 1;
   // decalques (marcas de pneu) sobre o G-buffer
   if (R.decals.length) { const p = apiPass(enc, D.decal); p.setBindGroup(0, R.globBG); R.dyn1[0] = 0; p.setBindGroup(1, R.passBG, R.dyn1, 0, 1); for (let i = 0; i < R.decals.length; i++) R.decals[i].draw(p); p.end(); }
-  fsPass(enc, D.half, P.half, P.halfBG); fsPass(enc, D.blurH, P.blurH, P.blurHBG); fsPass(enc, D.blurV, P.blurV, P.blurVBG);
+  if (Q_CONF.ao !== false) {
+    fsPass(enc, D.half, P.half, P.halfBG);
+    fsPass(enc, D.blurH, P.blurH, P.blurHBG);
+    fsPass(enc, D.blurV, P.blurV, P.blurVBG);
+  }
   fsPass(enc, D.light, P.light, P.lightBG[prev]);
   if (R.transparents.length) {
     const p = apiPass(enc, D.trans); p.setBindGroup(0, R.globBG); R.dyn1[0] = 0; p.setBindGroup(1, R.passBG, R.dyn1, 0, 1); R.dyn2[0] = 0; p.setBindGroup(2, R.objBG, R.dyn2, 0, 1);
@@ -94,9 +104,11 @@ function postFrame(enc) {
     fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
   }
   fsPass(enc, D.mb, P.mb, P.mbBG[cur]);
-  for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
-  for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);
-  fsPass(enc, D.expo[cur], P.expo, P.expoBG[prev]);
+  if (Q_CONF.bloom !== false && BLOOM_N > 0) {
+    for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
+    for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);
+    fsPass(enc, D.expo[cur], P.expo, P.expoBG[prev]);
+  }
   D.final.colorAttachments[0].view = apiCanvasView();
   if (R.dbgBG) fsPass(enc, D.final, P.dbg, R.dbgBG); else fsPass(enc, D.final, P.final, P.finalBG[cur]);
 }

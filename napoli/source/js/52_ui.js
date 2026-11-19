@@ -8,7 +8,7 @@ function uiInit() {
   UI.el = $('ui'); UI.tag = $('tag'); UI.res = $('res'); UI.b0 = $('b0'); UI.bDemo = $('bDemo'); UI.b1 = $('b1');
   hudInit(); uiWarmup();
   const updateQualityBtns = () => {
-    ['low', 'med', 'high'].forEach(k => {
+    ['veryLow', 'low', 'med', 'high'].forEach(k => {
       const b = $('q' + k.charAt(0).toUpperCase() + k.slice(1));
       if (b) {
         const isCurrent = currentQuality === k;
@@ -65,7 +65,7 @@ function uiKey(e) {
   if (c === 'KeyM') { sndMute(!SND.mute); return; }
   if (c === 'KeyH') { UI.stats = !UI.stats; hudStats(UI.stats); if (st !== ST.BENCH) perfAttach(UI.stats, 12); return; }
   if (c === 'KeyQ') {
-    const seq = ['low', 'med', 'high'];
+    const seq = ['veryLow', 'low', 'med', 'high'];
     const next = seq[(seq.indexOf(currentQuality) + 1) % seq.length];
     setQuality(next, true);
     return;

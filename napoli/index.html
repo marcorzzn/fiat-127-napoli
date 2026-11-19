@@ -83,7 +83,7 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 <div><h2>Strumenti</h2><table>
 <tr><td>M</td><td>attiva / disattiva audio</td></tr>
 <tr><td>H</td><td>statistiche prestazioni</td></tr>
-<tr><td>Q</td><td>qualità (Bassa/Media/Alta)</td></tr>
+<tr><td>Q</td><td>qualità (Molto Bassa / Bassa / Media / Alta)</td></tr>
 <tr><td>F</td><td>guida autonoma (Demo)</td></tr>
 <tr><td>B</td><td>benchmark 60 s</td></tr>
 <tr><td>1 – 6</td><td>pose fisse livrea e pista</td></tr>
@@ -94,6 +94,7 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 <div class="q-bar">
 <span class="q-title">Qualità:</span>
 <div class="q-group">
+<button type="button" class="q-btn" id="qVeryLow">Molto Bassa</button>
 <button type="button" class="q-btn" id="qLow">Bassa</button>
 <button type="button" class="q-btn" id="qMed">Media</button>
 <button type="button" class="q-btn" id="qHigh">Alta</button>
@@ -394,13 +395,22 @@ fn tone(c: vec3f) -> vec3f { return agx(c); }
 @fragment fn fs(in: FsV) -> @location(0) vec4f {
   let p = vec2i(in.pos.xy); let dim = vec2i(F.screen.xy) - 1;
   // exposição automática parcial: compensa ~50% da variação de luminância (cenas escuras continuam um pouco mais escuras)
+#ifdef NO_BLOOM
+  let lavg = 0.16;
+  let ex = F.misc.z * 0.094;
+#else
   let lavg = clamp(textureLoad(tExp, vec2i(0), 0).r, 0.02, 3.0);
   let ex = F.misc.z * 0.094 * pow(0.16 / lavg, 0.5) / 0.16;
+#endif
   var c = textureLoad(tCol, p, 0).rgb;
   // nitidez (em espaço de tons) com os 4 vizinhos
   let n = textureLoad(tCol, clamp(p + vec2i(0, -1), vec2i(0), dim), 0).rgb + textureLoad(tCol, clamp(p + vec2i(0, 1), vec2i(0), dim), 0).rgb
         + textureLoad(tCol, clamp(p + vec2i(-1, 0), vec2i(0), dim), 0).rgb + textureLoad(tCol, clamp(p + vec2i(1, 0), vec2i(0), dim), 0).rgb;
+#ifdef NO_BLOOM
+  let bl = vec3f(0.0);
+#else
   let bl = textureSampleLevel(tBloom, s, in.uv, 0.0).rgb * (1.0 / 6.0);
+#endif
   let lc = lum(c); let ln = lum(n) * 0.25;
   let sharp = clamp((lc - ln) * 0.8, -0.3 * lc, 0.4 * lc);
   c = c * (1.0 + sharp / max(lc, 1e-4));
@@ -720,9 +730,11 @@ struct LOut { @location(0) col: vec4f }
   if (d <= 0.0) {
     var c = skyColor(-V);
     // raios de luz na névoa também sobre o céu
+#ifndef NO_AO
     let hs = textureSampleLevel(tHalf, sClamp, in.uv, 0.0);
     let Tn = exp(-fogOD(F.camPos.xyz, -V, VOL_DIST));
     c = c * mix(1.0, Tn, 0.0) - fogSunCol(-V) * (1.0 - Tn) * (1.0 - hs.g) * 0.85;
+#endif
     o.col = vec4f(max(c, vec3f(0.0)), 1.0); return o;
   }
   let a = textureLoad(gA, px, 0); let b = textureLoad(gB, px, 0); let m = textureLoad(gC, px, 0);
@@ -758,9 +770,13 @@ struct LOut { @location(0) col: vec4f }
     col += sun * diffC * sss * (back * 0.75 + sat(nl * 0.5 + 0.5) * 0.12) / PI * 2.0;
   }
   // ambiente
+#ifdef NO_AO
+  let ao = a.a * cao;
+#else
   var hv = halfSample(in.uv, dist * dot(-V, F.camFwd.xyz)); hv.g = mix(1.0, hv.g, 0.7);
   let aoS = hv.r;
   let ao = min(a.a, aoS) * cao;
+#endif
   // luz do céu nas sombras: um pouco dessaturada e reforçada (rebote difuso do cenário que o SH não capta)
   var irr = shIrr(N); irr = mix(vec3f(lum(irr)), irr, 0.15) * 1.75 * pow(F.sunCol.rgb / lum(F.sunCol.rgb), vec3f(0.42));   // quase neutra e levemente quente: a sombra não fica azul-marinho depois do balanço de branco
   col += diffC * irr * ao * coatAtt;
@@ -784,8 +800,12 @@ struct LOut { @location(0) col: vec4f }
   col += albedo * (m.z * m.z) * 16.0;
   // névoa
   let dir = -V; let od = fogOD(F.camPos.xyz, dir, dist); let T = exp(-od);
+#ifdef NO_AO
+  let sunIn = fogSunCol(dir) * (1.0 - T) * 0.45;
+#else
   let nearD = min(dist, VOL_DIST); let Tn = exp(-fogOD(F.camPos.xyz, dir, nearD));
   let sunIn = fogSunCol(dir) * max(0.0, (1.0 - T) - (1.0 - Tn) * (1.0 - hv.g));
+#endif
   col = col * T + fogAmbCol(dir) * (1.0 - T) + sunIn;
   o.col = vec4f(col, 1.0);
   return o;
@@ -1727,6 +1747,13 @@ fn shadowStatic(wp: vec3f, n: vec3f, phi: f32, soft: f32) -> f32 {
 // visibilidade do sol em wp (normal n, pixel px para o ruído). nl = N·L para o viés.
 fn sunShadow(wp: vec3f, n: vec3f, px: vec2f, nl: f32) -> f32 { return sunShadowK(wp, n, px, nl, 1.0); }
 // rot = 0: núcleo fixo, sem rotação por pixel (para superfícies com verniz: o brilho especular amplificava o ruído em trama)
+#ifdef NO_SHADOW
+fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
+  let noise = ign(px, F.misc.y);
+  let phi = noise * 6.2831853 * rot;
+  return shadowStatic(wp, n, phi, 1.6);
+}
+#else
 fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   let noise = ign(px, F.misc.y);
   let phi = noise * 6.2831853 * rot;
@@ -1748,6 +1775,7 @@ fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   }
   return acc + (1.0 - wAcc) * shadowStatic(wp, n, phi, 1.6);
 }
+#endif
 `;
 WGSL["skid"] = `// Marcas de pneu: decalque escuro sobre o albedo do G-buffer.
 #include common
@@ -2875,11 +2903,12 @@ const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
 
-// Preset di qualità grafica: Bassa (massima fluidità a risoluzione nativa), Media (bilanciata), Alta (fedeltà visiva)
+// Preset di qualità grafica: Molto Bassa (ultra-leggera 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
-  low:  { label: 'Bassa', dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ssr: false, motionBlur: false, bloomLevels: 3, aoSamples: 4, volSamples: 4,  vegShadow: false, grass: false },
-  med:  { label: 'Media', dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ssr: false, motionBlur: true,  bloomLevels: 4, aoSamples: 8, volSamples: 8,  vegShadow: true,  grass: true },
-  high: { label: 'Alta',  dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ssr: true,  motionBlur: true,  bloomLevels: 6, aoSamples: 14, volSamples: 20, vegShadow: true,  grass: true },
+  veryLow: { label: 'Molto Bassa', dpr: 1.0, shadow: 512,  cascades: 0, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
+  low:     { label: 'Bassa',       dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: true,  aoSamples: 4,  volSamples: 4,  ssr: false, motionBlur: false, bloom: true,  bloomLevels: 3, vegShadow: false, grass: false },
+  med:     { label: 'Media',       dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ao: true,  aoSamples: 8,  volSamples: 8,  ssr: false, motionBlur: true,  bloom: true,  bloomLevels: 4, vegShadow: true,  grass: true },
+  high:    { label: 'Alta',        dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ao: true,  aoSamples: 14, volSamples: 20, ssr: true,  motionBlur: true,  bloom: true,  bloomLevels: 6, vegShadow: true,  grass: true },
 };
 
 function detectDefaultQuality(adapterInfo) {
@@ -2891,10 +2920,10 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/swiftshader|llvmpipe|software|basic render|integrated/.test(desc)) {
-    return 'low';
+  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics/.test(desc)) {
+    return 'veryLow';
   }
-  return 'med';
+  return 'low';
 }
 
 let currentQuality = 'med';
@@ -3772,9 +3801,9 @@ function worldMapBuild() {
 
 // ---- 20_renderer.js
 // Núcleo do renderizador diferido: recursos, uniformes de quadro, famílias de material e o grafo de passes.
-const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = currentQuality === 'low' ? 1024 : currentQuality === 'med' ? 2048 : 4096;
-const ENV_RES = Q_CONF.envRes || (currentQuality === 'low' ? 256 : 512), ENV_MIPS = Q_CONF.envMips || (currentQuality === 'low' ? 6 : 7);
-const SKY_W = currentQuality === 'low' ? 2048 : 4096, SKY_H = currentQuality === 'low' ? 512 : 1024, VOL_DIST = 220;
+const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = (currentQuality === 'low' || currentQuality === 'veryLow') ? 1024 : currentQuality === 'med' ? 2048 : 4096;
+const ENV_RES = Q_CONF.envRes || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 256 : 512), ENV_MIPS = Q_CONF.envMips || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 6 : 7);
+const SKY_W = (currentQuality === 'low' || currentQuality === 'veryLow') ? 2048 : 4096, SKY_H = (currentQuality === 'low' || currentQuality === 'veryLow') ? 512 : 1024, VOL_DIST = 220;
 const SKY_EL0 = -0.14, SKY_ELR = PI / 2 + 0.14;
 const SH_DEFS = { SHADOW_RES: SHADOW_RES + '.0', ENV_MIPS: ENV_MIPS + '.0', ENV_MIP_K: (ENV_RES * 2 / (PI * 1.5)).toFixed(2), VOL_DIST: VOL_DIST + '.0', SKY_EL0: SKY_EL0.toFixed(5), SKY_ELR: SKY_ELR.toFixed(5) };
 const KIND = { GBUF: 0, SHADOW: 1, CUBE: 2 };
@@ -4102,7 +4131,7 @@ function renderFrame() {
   for (let i = 0; i < R.preFrame.length; i++) R.preFrame[i]();
   const enc = apiEncoder();
   // sombras
-  const nCasc = Q_CONF.cascades || 3;
+  const nCasc = Q_CONF.cascades !== undefined ? Q_CONF.cascades : 3;
   for (let i = 0; i < nCasc; i++) {
     const p = apiPass(enc, D.shadow[i]);
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();
@@ -4140,7 +4169,7 @@ function renderStaticShadow() {
 
 // ---- 21_post.js
 // Passes de tela cheia: meia resolução (AO + névoa), iluminação, transparentes, TAA, desfoque de movimento, bloom, saída.
-const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels || 6;
+const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels !== undefined ? Q_CONF.bloomLevels : 6;
 function postInit() {
   const dev = G.dev, T = R.tex, V = R.view, W = G.W, H = G.H, D = R.pd, P = R.post = {};
   const HDR = 'rgba16float';
@@ -4151,7 +4180,12 @@ function postInit() {
   D.half = mkPassDesc(1, null, false, 'half'); D.half.colorAttachments[0].view = V.half[0];
   D.blurH = mkPassDesc(1, null, false, 'blurH'); D.blurH.colorAttachments[0].view = V.half[1];
   D.blurV = mkPassDesc(1, null, false, 'blurV'); D.blurV.colorAttachments[0].view = V.half[2];
-  const lightDefs = Object.assign({ VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades || 3) }, Q_CONF.ssr ? { SSR: '' } : {});
+  const lightDefs = Object.assign(
+    { VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades !== undefined ? Q_CONF.cascades : 3) },
+    Q_CONF.cascades === 0 ? { NO_SHADOW: '' } : {},
+    Q_CONF.ao === false ? { NO_AO: '' } : {},
+    Q_CONF.ssr ? { SSR: '' } : {}
+  );
   P.light = mkPost('light', lightDefs, [HDR]);
   P.lightBG = [0, 1].map(i => bgOf(P.light, 0, [R.frameBuf, V.gA, V.gB, V.gC, V.depth, V.shadow, V.shadowS, R.sCmp, V.half[2], V.env, V.sky, R.sClamp, R.sSky, V.hist[i]]));
   P.taa = mkPost('taa', {}, [HDR, 'rg16float']);
@@ -4169,7 +4203,8 @@ function postInit() {
   D.mb = mkPassDesc(1, null, false, 'mblur'); D.mb.colorAttachments[0].view = V.mb;
   // bloom
   T.bl = []; V.bl = []; D.blDown = []; D.blUp = []; P.blDownBG = []; P.blUpBG = [];
-  for (let i = 0; i < BLOOM_N; i++) { T.bl[i] = mkTex(Math.max(2, W >> (i + 1)), Math.max(2, H >> (i + 1)), HDR); V.bl[i] = T.bl[i].createView(); }
+  const bloomCount = Math.max(1, BLOOM_N);
+  for (let i = 0; i < bloomCount; i++) { T.bl[i] = mkTex(Math.max(2, W >> (i + 1)), Math.max(2, H >> (i + 1)), HDR); V.bl[i] = T.bl[i].createView(); }
   P.blFirst = mkPost('bloom', { FIRST: '' }, [HDR]); P.blDown = mkPost('bloom', {}, [HDR]);
   P.blUp = mkPost('bloom', { UP: '', UPW: '1.0' }, [{ format: HDR, blend: { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } } }]);
   for (let i = 0; i < BLOOM_N; i++) {
@@ -4183,9 +4218,9 @@ function postInit() {
   // exposição
   T.ex = [mkTex(1, 1, 'r16float'), mkTex(1, 1, 'r16float')]; V.ex = T.ex.map(t => t.createView());
   P.expo = mkPost('expo', {}, ['r16float']);
-  P.expoBG = [0, 1].map(i => bgOf(P.expo, 0, [R.frameBuf, V.bl[BLOOM_N - 1], V.ex[i], R.sClamp]));
+  P.expoBG = [0, 1].map(i => bgOf(P.expo, 0, [R.frameBuf, V.bl[bloomCount - 1], V.ex[i], R.sClamp]));
   D.expo = [0, 1].map(i => { const d = mkPassDesc(1, null, false, 'expo'); d.colorAttachments[0].view = V.ex[i]; return d; });
-  P.final = mkPost('final', {}, [G.fmt]);
+  P.final = mkPost('final', Q_CONF.bloom === false ? { NO_BLOOM: '' } : {}, [G.fmt]);
   P.finalBG = [0, 1].map(i => bgOf(P.final, 0, [R.frameBuf, V.mb, V.bl[0], V.ex[i], R.sClamp, V.depth]));
   D.final = mkPassDesc(1, null, false, 'final');
   // cubemap: céu + pré-filtro
@@ -4223,7 +4258,11 @@ function postFrame(enc) {
   const P = R.post, D = R.pd, cur = R.frameIdx & 1, prev = cur ^ 1;
   // decalques (marcas de pneu) sobre o G-buffer
   if (R.decals.length) { const p = apiPass(enc, D.decal); p.setBindGroup(0, R.globBG); R.dyn1[0] = 0; p.setBindGroup(1, R.passBG, R.dyn1, 0, 1); for (let i = 0; i < R.decals.length; i++) R.decals[i].draw(p); p.end(); }
-  fsPass(enc, D.half, P.half, P.halfBG); fsPass(enc, D.blurH, P.blurH, P.blurHBG); fsPass(enc, D.blurV, P.blurV, P.blurVBG);
+  if (Q_CONF.ao !== false) {
+    fsPass(enc, D.half, P.half, P.halfBG);
+    fsPass(enc, D.blurH, P.blurH, P.blurHBG);
+    fsPass(enc, D.blurV, P.blurV, P.blurVBG);
+  }
   fsPass(enc, D.light, P.light, P.lightBG[prev]);
   if (R.transparents.length) {
     const p = apiPass(enc, D.trans); p.setBindGroup(0, R.globBG); R.dyn1[0] = 0; p.setBindGroup(1, R.passBG, R.dyn1, 0, 1); R.dyn2[0] = 0; p.setBindGroup(2, R.objBG, R.dyn2, 0, 1);
@@ -4235,9 +4274,11 @@ function postFrame(enc) {
     fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
   }
   fsPass(enc, D.mb, P.mb, P.mbBG[cur]);
-  for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
-  for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);
-  fsPass(enc, D.expo[cur], P.expo, P.expoBG[prev]);
+  if (Q_CONF.bloom !== false && BLOOM_N > 0) {
+    for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
+    for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);
+    fsPass(enc, D.expo[cur], P.expo, P.expoBG[prev]);
+  }
   D.final.colorAttachments[0].view = apiCanvasView();
   if (R.dbgBG) fsPass(enc, D.final, P.dbg, R.dbgBG); else fsPass(enc, D.final, P.final, P.finalBG[cur]);
 }
@@ -6513,7 +6554,7 @@ function vegArchetypes() {
 // ---- 33_veg_c_sys.js
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low',
+  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low' && currentQuality !== 'veryLow',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },
@@ -6765,7 +6806,7 @@ const vegDrawable = {
     }
     pass.setVertexBuffer(0, V.instBuf);
     const NS = V.NS, SUP = V.SUP, scx = clamp(Math.floor((camx - V.x0) / SUP), 0, NS - 1), scz = clamp(Math.floor((camz - V.z0) / SUP), 0, NS - 1);
-    const all = shadow && ctx.cascade === 3, maxR = all || kind === KIND.GBUF ? NS : 3;
+    const all = shadow && ctx.cascade === 3, maxR = all || kind === KIND.GBUF ? (currentQuality === 'veryLow' ? 5 : NS) : 3;
     for (let r = 0; r < maxR; r++) for (let dz = -r; dz <= r; dz++) {
       const stp = (dz === -r || dz === r) ? 1 : 2 * r;
       for (let dx = -r; dx <= r; dx += stp || 1) {
@@ -8057,7 +8098,7 @@ function uiInit() {
   UI.el = $('ui'); UI.tag = $('tag'); UI.res = $('res'); UI.b0 = $('b0'); UI.bDemo = $('bDemo'); UI.b1 = $('b1');
   hudInit(); uiWarmup();
   const updateQualityBtns = () => {
-    ['low', 'med', 'high'].forEach(k => {
+    ['veryLow', 'low', 'med', 'high'].forEach(k => {
       const b = $('q' + k.charAt(0).toUpperCase() + k.slice(1));
       if (b) {
         const isCurrent = currentQuality === k;
@@ -8114,7 +8155,7 @@ function uiKey(e) {
   if (c === 'KeyM') { sndMute(!SND.mute); return; }
   if (c === 'KeyH') { UI.stats = !UI.stats; hudStats(UI.stats); if (st !== ST.BENCH) perfAttach(UI.stats, 12); return; }
   if (c === 'KeyQ') {
-    const seq = ['low', 'med', 'high'];
+    const seq = ['veryLow', 'low', 'med', 'high'];
     const next = seq[(seq.indexOf(currentQuality) + 1) % seq.length];
     setQuality(next, true);
     return;

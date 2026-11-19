@@ -1,7 +1,7 @@
 // Núcleo do renderizador diferido: recursos, uniformes de quadro, famílias de material e o grafo de passes.
-const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = currentQuality === 'low' ? 1024 : currentQuality === 'med' ? 2048 : 4096;
-const ENV_RES = Q_CONF.envRes || (currentQuality === 'low' ? 256 : 512), ENV_MIPS = Q_CONF.envMips || (currentQuality === 'low' ? 6 : 7);
-const SKY_W = currentQuality === 'low' ? 2048 : 4096, SKY_H = currentQuality === 'low' ? 512 : 1024, VOL_DIST = 220;
+const SHADOW_RES = Q_CONF.shadow, SHADOW_S_RES = (currentQuality === 'low' || currentQuality === 'veryLow') ? 1024 : currentQuality === 'med' ? 2048 : 4096;
+const ENV_RES = Q_CONF.envRes || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 256 : 512), ENV_MIPS = Q_CONF.envMips || ((currentQuality === 'low' || currentQuality === 'veryLow') ? 6 : 7);
+const SKY_W = (currentQuality === 'low' || currentQuality === 'veryLow') ? 2048 : 4096, SKY_H = (currentQuality === 'low' || currentQuality === 'veryLow') ? 512 : 1024, VOL_DIST = 220;
 const SKY_EL0 = -0.14, SKY_ELR = PI / 2 + 0.14;
 const SH_DEFS = { SHADOW_RES: SHADOW_RES + '.0', ENV_MIPS: ENV_MIPS + '.0', ENV_MIP_K: (ENV_RES * 2 / (PI * 1.5)).toFixed(2), VOL_DIST: VOL_DIST + '.0', SKY_EL0: SKY_EL0.toFixed(5), SKY_ELR: SKY_ELR.toFixed(5) };
 const KIND = { GBUF: 0, SHADOW: 1, CUBE: 2 };
@@ -329,7 +329,7 @@ function renderFrame() {
   for (let i = 0; i < R.preFrame.length; i++) R.preFrame[i]();
   const enc = apiEncoder();
   // sombras
-  const nCasc = Q_CONF.cascades || 3;
+  const nCasc = Q_CONF.cascades !== undefined ? Q_CONF.cascades : 3;
   for (let i = 0; i < nCasc; i++) {
     const p = apiPass(enc, D.shadow[i]);
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();

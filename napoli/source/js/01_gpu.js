@@ -3,11 +3,12 @@ const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
 
-// Preset di qualità grafica: Bassa (massima fluidità a risoluzione nativa), Media (bilanciata), Alta (fedeltà visiva)
+// Preset di qualità grafica: Molto Bassa (ultra-leggera 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
-  low:  { label: 'Bassa', dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ssr: false, motionBlur: false, bloomLevels: 3, aoSamples: 4, volSamples: 4,  vegShadow: false, grass: false },
-  med:  { label: 'Media', dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ssr: false, motionBlur: true,  bloomLevels: 4, aoSamples: 8, volSamples: 8,  vegShadow: true,  grass: true },
-  high: { label: 'Alta',  dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ssr: true,  motionBlur: true,  bloomLevels: 6, aoSamples: 14, volSamples: 20, vegShadow: true,  grass: true },
+  veryLow: { label: 'Molto Bassa', dpr: 1.0, shadow: 512,  cascades: 0, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: false, ssr: false, motionBlur: false, bloom: false, bloomLevels: 0, vegShadow: false, grass: false },
+  low:     { label: 'Bassa',       dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ao: true,  aoSamples: 4,  volSamples: 4,  ssr: false, motionBlur: false, bloom: true,  bloomLevels: 3, vegShadow: false, grass: false },
+  med:     { label: 'Media',       dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ao: true,  aoSamples: 8,  volSamples: 8,  ssr: false, motionBlur: true,  bloom: true,  bloomLevels: 4, vegShadow: true,  grass: true },
+  high:    { label: 'Alta',        dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ao: true,  aoSamples: 14, volSamples: 20, ssr: true,  motionBlur: true,  bloom: true,  bloomLevels: 6, vegShadow: true,  grass: true },
 };
 
 function detectDefaultQuality(adapterInfo) {
@@ -19,10 +20,10 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/swiftshader|llvmpipe|software|basic render|integrated/.test(desc)) {
-    return 'low';
+  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics/.test(desc)) {
+    return 'veryLow';
   }
-  return 'med';
+  return 'low';
 }
 
 let currentQuality = 'med';
