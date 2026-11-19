@@ -2901,7 +2901,7 @@ function halton(i, b) { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % 
 // Dispositivo WebGPU, utilitários de recurso e pré-processador de WGSL.
 const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
-const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
+const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: Q.get('hz') === '30' ? 32.0 : 0, gpuWorstMs: 0, ui: false };
 
 // Preset di qualità grafica: Molto bassa (ultra-leggera a 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
@@ -2920,7 +2920,7 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics/.test(desc)) {
+  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics|radeon.*r[2-7]|radeon.*hd|apu|mullins|beema|kabini|carrizo|kaveri/.test(desc)) {
     return 'veryLow';
   }
   return 'low';
@@ -8342,7 +8342,11 @@ async function main() {
     for (let k = 0; k < 2; k++) { for (let i = 0; i < 6; i++) renderFrame(); await computeSH(); }
     if (GAME.prewarm) {
       const worst = await GAME.prewarm(); await computeSH();
-      GAME.gpuWorstMs = worst; GAME.minFrameMs = Q.get('hz') === '120' ? 0 : (Q.get('hz') === '60' || worst > 6.2) ? 14.6 : 0;
+      GAME.gpuWorstMs = worst;
+      if (Q.get('hz') === '30') GAME.minFrameMs = 32.0;
+      else if (Q.get('hz') === '120') GAME.minFrameMs = 0;
+      else if (Q.get('hz') === '60' || worst > 6.2) GAME.minFrameMs = 14.6;
+      else GAME.minFrameMs = 0;
     }
     for (let i = 0; i < 8; i++) renderFrame();
     R.cam.first = true;

@@ -58,7 +58,11 @@ async function main() {
     for (let k = 0; k < 2; k++) { for (let i = 0; i < 6; i++) renderFrame(); await computeSH(); }
     if (GAME.prewarm) {
       const worst = await GAME.prewarm(); await computeSH();
-      GAME.gpuWorstMs = worst; GAME.minFrameMs = Q.get('hz') === '120' ? 0 : (Q.get('hz') === '60' || worst > 6.2) ? 14.6 : 0;
+      GAME.gpuWorstMs = worst;
+      if (Q.get('hz') === '30') GAME.minFrameMs = 32.0;
+      else if (Q.get('hz') === '120') GAME.minFrameMs = 0;
+      else if (Q.get('hz') === '60' || worst > 6.2) GAME.minFrameMs = 14.6;
+      else GAME.minFrameMs = 0;
     }
     for (let i = 0; i < 8; i++) renderFrame();
     R.cam.first = true;

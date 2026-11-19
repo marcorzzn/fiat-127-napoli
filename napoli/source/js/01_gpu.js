@@ -1,7 +1,7 @@
 // Dispositivo WebGPU, utilitários de recurso e pré-processador de WGSL.
 const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
-const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
+const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: Q.get('hz') === '30' ? 32.0 : 0, gpuWorstMs: 0, ui: false };
 
 // Preset di qualità grafica: Molto bassa (ultra-leggera a 60 FPS per qualsiasi dispositivo), Bassa, Media, Alta
 const QUALITY_PRESETS = {
@@ -20,7 +20,7 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics/.test(desc)) {
+  if (/swiftshader|llvmpipe|software|basic render|integrated|intel|uhd|hd graphics|radeon.*r[2-7]|radeon.*hd|apu|mullins|beema|kabini|carrizo|kaveri/.test(desc)) {
     return 'veryLow';
   }
   return 'low';
