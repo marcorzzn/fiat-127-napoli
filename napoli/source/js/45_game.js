@@ -131,7 +131,8 @@ function gameStep() {
       if (GS.replay && GS.tick60 < GS.replay.length) k = GS.replay[GS.tick60];
       else {
         k = t < 0.5 ? 0 : aiKeys(t);
-        if (GS.tick60 > 0 && GS.tick60 % 720 === 0) k |= K_C;
+        const camInt = Math.round(+(Q.get('cam_interval') || 8) * 60);
+        if (GS.tick60 > 0 && GS.tick60 % camInt === 0) k |= K_C;
       }
     } else if (GS.ai) k = t < 0.5 ? 0 : aiKeys(t);
     else { k = GS.held; if (GS.padKeys) k = padMerge(k); }
