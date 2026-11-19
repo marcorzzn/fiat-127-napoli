@@ -1,24 +1,25 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Uno com escada</title>
-<meta name="description" content="Um Fiat Uno Mille EP 1996 com escada no teto para pilotar em três versões de circuito WebGPU: Fable 5.2, Opus 5.5 e GPT-6.2 Astra.">
-<meta property="og:title" content="Uno com escada">
-<meta property="og:description" content="Um Fiat Uno Mille EP 1996 com escada no teto para pilotar em três versões de circuito WebGPU: Fable 5.2, Opus 5.5 e GPT-6.2 Astra.">
+<title>Gran Premio di Napoli · Fiat 127 Napoli 1926</title>
+<meta name="description" content="Corri con la Fiat 127 in livrea SSC Napoli 3° Scudetto 1926 sul circuito cittadino del Lungomare Caracciolo e Rotonda Diaz in WebGPU, insieme ai tre circuiti originali del motore.">
+<meta property="og:title" content="Gran Premio di Napoli · Fiat 127 Napoli 1926">
+<meta property="og:description" content="Corri con la Fiat 127 in livrea SSC Napoli 3° Scudetto 1926 sul circuito cittadino del Lungomare Caracciolo e Rotonda Diaz in WebGPU.">
 <style>
   :root {
-    --bg: #0f1415;
-    --surface: #171e20;
-    --surface-hover: #1e2729;
-    --border: rgba(255, 255, 255, 0.1);
-    --border-strong: rgba(255, 255, 255, 0.22);
-    --text: #f2f1ec;
-    --muted: #aeb6b4;
-    --accent: #e55824;
-    --accent-hover: #f26c3a;
-    --gold: #f6c963;
+    --bg: #08111b;
+    --surface: #0f1b29;
+    --surface-2: #142436;
+    --border: rgba(154, 203, 255, 0.14);
+    --border-strong: rgba(154, 203, 255, 0.28);
+    --text: #f3f7fc;
+    --muted: #a6bbd1;
+    --azzurro: #1278d8;
+    --azzurro-hover: #258ef2;
+    --azzurro-soft: #6ec5ff;
+    --gold: #f5c95c;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -31,59 +32,69 @@
   }
   a { color: inherit; }
 
-  /* Hub view */
   .hub {
-    max-width: 1180px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 36px 24px 56px;
+    padding: 36px 24px 64px;
   }
+
+  /* Flagship Napoli Hero */
   .hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: 32px;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    gap: 36px;
     align-items: center;
-    margin-bottom: 40px;
-    padding-bottom: 32px;
+    margin-bottom: 44px;
+    padding-bottom: 36px;
     border-bottom: 1px solid var(--border);
   }
   .eyebrow {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--gold);
-    margin: 0 0 8px;
+    color: var(--azzurro-soft);
+    margin: 0 0 10px;
   }
   h1 {
-    margin: 0 0 12px;
-    font-size: clamp(32px, 4.2vw, 48px);
-    line-height: 1.08;
-    letter-spacing: -0.025em;
+    margin: 0 0 14px;
+    font-size: clamp(32px, 4.1vw, 48px);
+    line-height: 1.06;
+    letter-spacing: -0.028em;
+    color: #fff;
   }
   .lead {
-    margin: 0 0 20px;
+    margin: 0 0 22px;
     color: var(--muted);
     font-size: 16px;
     max-width: 56ch;
+  }
+  .hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 24px;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .metric strong {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .metric span {
+    font-size: 12px;
+    color: var(--muted);
   }
   .hero-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
-  }
-  .hero-img-wrap {
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: #000;
-    aspect-ratio: 16 / 9;
-  }
-  .hero-img-wrap img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
   .webgpu-note {
     margin: 14px 0 0;
@@ -92,15 +103,61 @@
   }
   .webgpu-note strong { color: var(--text); }
 
+  .hero-figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .hero-img-wrap {
+    aspect-ratio: 4 / 3;
+    background: #0b141f;
+    overflow: hidden;
+  }
+  .hero-img-wrap img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-caption {
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .hero-caption strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Section headers */
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0 0 18px;
+  }
   .section-title {
-    margin: 0 0 16px;
-    font-size: 13px;
+    margin: 0;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
+    color: var(--azzurro-soft);
+  }
+  .section-sub {
+    margin: 0;
+    font-size: 13px;
     color: var(--muted);
   }
 
+  /* Reference & Edition Grids */
   .grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -122,7 +179,7 @@
   }
   .thumb {
     aspect-ratio: 16 / 9;
-    background: #0a0d0e;
+    background: #070d14;
     overflow: hidden;
     border-bottom: 1px solid var(--border);
   }
@@ -138,18 +195,19 @@
     flex-direction: column;
     flex: 1;
   }
-  .card-circuit {
+  .card-kicker {
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.15em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--gold);
-    margin: 0 0 4px;
+    margin: 0 0 5px;
   }
-  .card h2 {
+  .card h3, .card h2 {
     margin: 0 0 8px;
-    font-size: 21px;
+    font-size: 19px;
     letter-spacing: -0.015em;
+    color: #fff;
   }
   .card p {
     margin: 0 0 14px;
@@ -176,6 +234,7 @@
     gap: 8px;
   }
 
+  /* Buttons */
   .btn {
     appearance: none;
     display: inline-flex;
@@ -185,35 +244,39 @@
     padding: 10px 16px;
     border-radius: 7px;
     border: 1px solid var(--border-strong);
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     color: var(--text);
-    font: 600 14px/1.2 inherit;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
     text-decoration: none;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
   }
   .btn:hover, .btn:focus-visible {
-    background: rgba(255, 255, 255, 0.13);
-    border-color: rgba(255, 255, 255, 0.36);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(154, 203, 255, 0.45);
     outline: none;
   }
   .btn:focus-visible {
-    outline: 2px solid var(--gold);
+    outline: 2px solid var(--azzurro-soft);
     outline-offset: 2px;
   }
   .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--azzurro);
+    border-color: var(--azzurro);
     color: #fff;
   }
   .card-actions .btn-primary {
     flex: 1;
   }
   .btn-primary:hover, .btn-primary:focus-visible {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+    background: var(--azzurro-hover);
+    border-color: var(--azzurro-hover);
   }
 
+  /* Controls section */
   .controls-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -228,7 +291,7 @@
   .panel h3 {
     margin: 0 0 12px;
     font-size: 15px;
-    color: var(--text);
+    color: #fff;
   }
   .key-list {
     margin: 0;
@@ -254,19 +317,15 @@
     font-weight: 700;
     color: var(--text);
     background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(154, 203, 255, 0.25);
     border-radius: 4px;
     padding: 2px 6px;
     white-space: nowrap;
   }
 
-  /* Player view */
-  body.playing {
-    overflow: hidden;
-  }
-  body.playing .hub {
-    display: none;
-  }
+  /* Embedded full-viewport player */
+  body.playing { overflow: hidden; }
+  body.playing .hub { display: none; }
   #player {
     display: none;
     position: fixed;
@@ -274,13 +333,11 @@
     flex-direction: column;
     background: #000;
   }
-  body.playing #player {
-    display: flex;
-  }
+  body.playing #player { display: flex; }
   .topbar {
-    height: 42px;
-    flex: 0 0 42px;
-    background: #111618;
+    height: 44px;
+    flex: 0 0 44px;
+    background: #0b1522;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -294,13 +351,17 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
+    overflow-x: auto;
   }
   .tab-btn {
     appearance: none;
     background: transparent;
     border: 1px solid transparent;
     color: var(--muted);
-    font: 600 13px/1 inherit;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
     padding: 7px 11px;
     border-radius: 6px;
     cursor: pointer;
@@ -312,8 +373,8 @@
   }
   .tab-btn[aria-pressed="true"] {
     color: #fff;
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--azzurro);
+    border-color: var(--azzurro);
   }
   .topbar-link {
     font-size: 12px;
@@ -337,145 +398,206 @@
     background: #000;
   }
 
-  @media (max-width: 920px) {
-    .hero { grid-template-columns: 1fr; }
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; gap: 24px; }
     .grid { grid-template-columns: 1fr; }
     .controls-grid { grid-template-columns: 1fr; }
+    .section-head { flex-direction: column; gap: 4px; }
   }
   @media (max-width: 560px) {
-    .hub { padding: 24px 16px 40px; }
+    .hub { padding: 24px 16px 44px; }
+    .hero-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .key-list { grid-template-columns: 1fr; }
     .topbar { padding: 0 8px; }
     .topbar-link { display: none; }
+    .hero-caption { flex-direction: column; gap: 2px; }
   }
 </style>
 </head>
 <body>
   <main class="hub">
-    <section class="hero">
+    <section class="hero" aria-label="Gran Premio di Napoli — Fiat 127 Napoli 1926">
       <div>
-        <p class="eyebrow">Fiat Uno Mille EP 1996 · WebGPU</p>
-        <h1>Uno com escada</h1>
+        <p class="eyebrow">Napoli Racing Show Arena · Motore WebGPU Single-HTML</p>
+        <h1>Gran Premio di Napoli · Fiat 127 Napoli 1926</h1>
         <p class="lead">
-          Três versões autocontidas do mesmo circuito 3D, geradas inteiramente em código sem assets externos, engine ou biblioteca 3D. Escolha uma versão para pilotar direto no navegador.
+          La Fiat 127 con livrea celebrativa del 3° Scudetto 1926 corre sul tracciato cittadino del Lungomare Caracciolo e della Rotonda Diaz: 1.275 metri antiorari con 7 chicane, barriere New Jersey, rotoballe, Castel dell’Ovo e il Vesuvio sullo sfondo, interamente in WebGPU senza librerie 3D esterne.
         </p>
+        <div class="hero-metrics" aria-label="Specifiche circuito e vettura">
+          <div class="metric"><strong>1.275 m</strong><span>Senso antiorario</span></div>
+          <div class="metric"><strong>7 chicane</strong><span>+ Rotonda Diaz</span></div>
+          <div class="metric"><strong>1926S3·NA</strong><span>Livrea 3° Scudetto</span></div>
+          <div class="metric"><strong>WebGPU</strong><span>Single-HTML PBR</span></div>
+        </div>
         <div class="hero-actions">
-          <button type="button" class="btn btn-primary" data-launch="fable">Jogar Fable 5.2</button>
-          <button type="button" class="btn" data-launch="opus">Jogar Opus 5.5</button>
-          <button type="button" class="btn" data-launch="astra">Jogar GPT-6.2 Astra</button>
+          <button type="button" class="btn btn-primary" data-launch="napoli">Corri sul Lungomare →</button>
+          <button type="button" class="btn" data-launch="napoli-demo">Guida autonoma (Demo)</button>
+          <a class="btn" href="/napoli/">Apri a schermo intero</a>
         </div>
         <p class="webgpu-note" id="webgpuNote">
-          <strong>Requisito:</strong> navegador com suporte a <strong>WebGPU</strong> (Chrome ou Edge em computador).
+          <strong>Requisito:</strong> browser con <strong>WebGPU</strong> abilitato (Chrome, Edge o Safari 18+ con GPU hardware).
         </p>
       </div>
-      <div class="hero-img-wrap">
-        <img src="/screenshots/fable-tv.jpg" alt="Fiat Uno azul com escada de alumínio no teto contornando curva pela câmera de TV">
-      </div>
+      <figure class="hero-figure">
+        <div class="hero-img-wrap">
+          <img src="/assets/aistudio/image_f3e260ec.png" alt="Fiat 127 in livrea azzurra Napoli 1926 con scudetto tricolore numero 3 sul cofano bianco, tetto a scacchi azzurro e bianco, maschera di Pulcinella e scritta FORZA NAPOLI sulla fiancata">
+        </div>
+        <figcaption class="hero-caption">
+          <strong>Fiat 127 · Livrea Napoli 1926</strong>
+          <span>Azzurro Napoli, scudetto 3, tetto a scacchi, cerchi bianchi</span>
+        </figcaption>
+      </figure>
     </section>
 
-    <h2 class="section-title">As três versões</h2>
-    <section class="grid" aria-label="Versões jogáveis">
+    <div class="section-head">
+      <h2 class="section-title">Riferimenti reali ricostruiti nel circuito 3D</h2>
+      <p class="section-sub">Tracciato, costa del Golfo di Napoli e arredo di pista integrati negli shader WGSL</p>
+    </div>
+    <section class="grid" aria-label="Riferimenti del circuito del Lungomare di Napoli">
       <article class="card">
         <div class="thumb">
-          <img src="/screenshots/fable-largada.jpg" alt="Reta de largada na versão do Fable 5.2">
+          <img src="/assets/aistudio/image_352b7143.png" alt="Planimetria ufficiale Napoli Racing Show Arena da 1.275 metri in senso antiorario su Via Caracciolo con 7 chicane e anello Rotonda Diaz">
         </div>
         <div class="card-body">
-          <div class="card-circuit">Serra da Mata</div>
-          <h2>Fable 5.2</h2>
-          <p>Inclui menu inicial, áudio sintetizado em tempo real, suporte a controle, modo benchmark e volta roteirizada.</p>
+          <div class="card-kicker">Tracciato · 1.275 m Antiorario</div>
+          <h3>Via Caracciolo &amp; Rotonda Diaz</h3>
+          <p>Due rettilinei paralleli collegati dall’anello semicircolare della Rotonda Diaz fronte mare, 7 chicane con rotoballe, tornante Castel dell’Ovo, tornante Mergellina, Tribuna Principale A/B ed Event Village.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="thumb">
+          <img src="/assets/aistudio/image_2f330de5.png" alt="Veduta aerea del circuito sul Lungomare di Napoli con il Golfo, le scogliere bianche, Mappatella Beach, Castel dell'Ovo e il Vesuvio">
+        </div>
+        <div class="card-body">
+          <div class="card-kicker">Scenario · Golfo di Napoli</div>
+          <h3>Castel dell’Ovo, Vesuvio &amp; Costa</h3>
+          <p>Mare del Golfo animato nello shader del terreno, scogliere calcaree bianche, sabbia vulcanica scura di Mappatella Beach, isolotto di Megaride con Castel dell’Ovo e profilo del Vesuvio con il Monte Somma.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="thumb">
+          <img src="/assets/aistudio/image_89486885.png" alt="Vista a livello pista con barriere New Jersey in cemento, rotoballe di paglia con frecce bianco-rosse, blocchi tricolore, portale di partenza e maxischermo">
+        </div>
+        <div class="card-body">
+          <div class="card-kicker">Arredo pista · Luce tardo pomeriggio</div>
+          <h3>New Jersey, Rotoballe &amp; Maxischermo</h3>
+          <p>Barriere New Jersey in cemento, rotoballe cilindriche con pannelli direzionali, blocchi bianco-rossi e tricolore, portale di partenza bianco/rosso, secondo arco su Via Caracciolo e maxischermo LED tralicciato.</p>
+        </div>
+      </article>
+    </section>
+
+    <div class="section-head">
+      <h2 class="section-title">I tre circuiti originali del motore</h2>
+      <p class="section-sub">Versioni originali preservate intatte nella repository</p>
+    </div>
+    <section class="grid" aria-label="Versioni originali giocabili">
+      <article class="card">
+        <div class="thumb">
+          <img src="/screenshots/fable-largada.jpg" alt="Rettilineo di partenza nella versione Fable 5.2">
+        </div>
+        <div class="card-body">
+          <div class="card-kicker">Serra da Mata · Base del motore Napoli</div>
+          <h3>Fable 5.2</h3>
+          <p>Versione originale su cui è costruito il Gran Premio di Napoli: audio sintetizzato in tempo reale, supporto gamepad, benchmark 60 s e giro guidato.</p>
           <div class="specs">
             <span><strong>603 KB</strong> HTML</span>
-            <span><strong>8</strong> rodadas</span>
+            <span><strong>WebGPU</strong> PBR</span>
           </div>
           <div class="card-actions">
-            <button type="button" class="btn btn-primary" data-launch="fable">Jogar Fable</button>
-            <a class="btn" href="/fable/" aria-label="Abrir Fable 5.2 em tela cheia">Direto</a>
+            <button type="button" class="btn btn-primary" data-launch="fable">Gioca Fable</button>
+            <a class="btn" href="/fable/" aria-label="Apri Fable 5.2 a schermo intero">Diretto</a>
           </div>
         </div>
       </article>
 
       <article class="card">
         <div class="thumb">
-          <img src="/screenshots/opus-largada.jpg" alt="Pórtico de largada na versão do Opus 5.5">
+          <img src="/screenshots/opus-largada.jpg" alt="Portale di partenza nella versione Opus 5.5">
         </div>
         <div class="card-body">
-          <div class="card-circuit">Circuito da Serra</div>
-          <h2>Opus 5.5</h2>
-          <p>Renderizador WebGPU diferido com SDF para a carroceria, menu de pausa, som sintetizado e benchmark de 60 s.</p>
+          <div class="card-kicker">Circuito da Serra</div>
+          <h3>Opus 5.5</h3>
+          <p>Renderer WebGPU deferred con SDF per la carrozzeria, menu di pausa, audio sintetizzato e modalità benchmark da 60 secondi.</p>
           <div class="specs">
             <span><strong>341 KB</strong> HTML</span>
-            <span><strong>11</strong> rodadas</span>
+            <span><strong>WebGPU</strong> SDF</span>
           </div>
           <div class="card-actions">
-            <button type="button" class="btn btn-primary" data-launch="opus">Jogar Opus</button>
-            <a class="btn" href="/opus/" aria-label="Abrir Opus 5.5 em tela cheia">Direto</a>
+            <button type="button" class="btn btn-primary" data-launch="opus">Gioca Opus</button>
+            <a class="btn" href="/opus/" aria-label="Apri Opus 5.5 a schermo intero">Diretto</a>
           </div>
         </div>
       </article>
 
       <article class="card">
         <div class="thumb">
-          <img src="/screenshots/astra-largada.jpg" alt="Uno azul na frente dos boxes na Serra do Lume, versão do GPT-6.2 Astra">
+          <img src="/screenshots/astra-largada.jpg" alt="Vettura davanti ai box a Serra do Lume, versione GPT-6.2 Astra">
         </div>
         <div class="card-body">
-          <div class="card-circuit">Serra do Lume</div>
-          <h2>GPT-6.2 Astra</h2>
-          <p>Abre direto na pista com arquibancada populada, três câmeras, mapa do traçado e painel analógico no HUD.</p>
+          <div class="card-kicker">Serra do Lume</div>
+          <h3>GPT-6.2 Astra</h3>
+          <p>Avvio diretto in pista con tribuna popolata, tre telecamere, minimappa del tracciato e cruscotto analogico nell’HUD.</p>
           <div class="specs">
             <span><strong>467 KB</strong> HTML</span>
-            <span><strong>19</strong> rodadas</span>
+            <span><strong>WebGPU</strong> Diretto</span>
           </div>
           <div class="card-actions">
-            <button type="button" class="btn btn-primary" data-launch="astra">Jogar Astra</button>
-            <a class="btn" href="/astra/" aria-label="Abrir GPT-6.2 Astra em tela cheia">Direto</a>
+            <button type="button" class="btn btn-primary" data-launch="astra">Gioca Astra</button>
+            <a class="btn" href="/astra/" aria-label="Apri GPT-6.2 Astra a schermo intero">Diretto</a>
           </div>
         </div>
       </article>
     </section>
 
-    <h2 class="section-title">Controles</h2>
-    <section class="controls-grid" aria-label="Resumo dos controles">
+    <div class="section-head">
+      <h2 class="section-title">Comandi di guida</h2>
+      <p class="section-sub">Tastiera e controller Gamepad standard supportati nativamente</p>
+    </div>
+    <section class="controls-grid" aria-label="Riepilogo dei comandi">
       <div class="panel">
-        <h3>Pilotagem (Teclado)</h3>
+        <h3>Guida (Tastiera)</h3>
         <ul class="key-list">
-          <li><span>Acelerar</span> <kbd>W / ↑</kbd></li>
-          <li><span>Frear / Ré</span> <kbd>S / ↓</kbd></li>
-          <li><span>Esterçar</span> <kbd>A D / ← →</kbd></li>
-          <li><span>Freio de mão</span> <kbd>Espaço</kbd></li>
-          <li><span>Trocar câmera</span> <kbd>C</kbd></li>
-          <li><span>Voltar à pista</span> <kbd>R</kbd></li>
+          <li><span>Accelera</span> <kbd>W / ↑</kbd></li>
+          <li><span>Frena / Retro</span> <kbd>S / ↓</kbd></li>
+          <li><span>Sterza</span> <kbd>A D / ← →</kbd></li>
+          <li><span>Freno a mano</span> <kbd>Spazio</kbd></li>
+          <li><span>Cambia telecamera</span> <kbd>C</kbd></li>
+          <li><span>Ripristina in pista</span> <kbd>R</kbd></li>
         </ul>
       </div>
       <div class="panel">
-        <h3>Menu e Ferramentas (Fable e Opus)</h3>
+        <h3>Menu e Strumenti (Napoli, Fable, Opus)</h3>
         <ul class="key-list">
-          <li><span>Pausar / Menu</span> <kbd>Esc</kbd></li>
-          <li><span>Ligar / Desligar som</span> <kbd>M</kbd></li>
-          <li><span>Olhar para trás</span> <kbd>V</kbd></li>
+          <li><span>Pausa / Menu</span> <kbd>Esc</kbd></li>
+          <li><span>Audio on / off</span> <kbd>M</kbd></li>
+          <li><span>Guarda indietro</span> <kbd>V</kbd></li>
+          <li><span>Guida autonoma (Demo)</span> <kbd>F</kbd></li>
           <li><span>Benchmark 60 s</span> <kbd>B</kbd></li>
-          <li><span>Volta roteirizada</span> <kbd>F</kbd></li>
-          <li><span>Poses fixas</span> <kbd>1 – 6</kbd></li>
+          <li><span>Pose livrea &amp; pista</span> <kbd>1 – 6</kbd></li>
         </ul>
       </div>
     </section>
   </main>
 
-  <section id="player" aria-label="Área do jogo">
-    <nav class="topbar" aria-label="Seletor de versões">
+  <section id="player" aria-label="Area di gioco">
+    <nav class="topbar" aria-label="Selettore circuiti">
       <div class="topbar-group">
-        <button type="button" class="tab-btn" id="backBtn">← Início</button>
+        <button type="button" class="tab-btn" id="backBtn">← Panoramica</button>
+        <button type="button" class="tab-btn" data-switch="napoli" aria-pressed="false">Napoli 127</button>
         <button type="button" class="tab-btn" data-switch="fable" aria-pressed="false">Fable 5.2</button>
         <button type="button" class="tab-btn" data-switch="opus" aria-pressed="false">Opus 5.5</button>
         <button type="button" class="tab-btn" data-switch="astra" aria-pressed="false">GPT-6.2 Astra</button>
       </div>
-      <a class="topbar-link" id="directLink" href="/fable/">Abrir página direta</a>
+      <a class="topbar-link" id="directLink" href="/napoli/">Apri a schermo intero</a>
     </nav>
-    <iframe id="gameFrame" title="Jogo Uno com escada" allow="gamepad; fullscreen"></iframe>
+    <iframe id="gameFrame" title="Gran Premio di Napoli · Fiat 127 Napoli 1926" allow="gamepad; fullscreen"></iframe>
   </section>
 
   <script>
     (() => {
-      const VALID = new Set(['fable', 'opus', 'astra']);
+      const VALID = new Set(['napoli', 'fable', 'opus', 'astra']);
       const frame = document.getElementById('gameFrame');
       const directLink = document.getElementById('directLink');
       const backBtn = document.getElementById('backBtn');
@@ -483,14 +605,14 @@
       const webgpuNote = document.getElementById('webgpuNote');
 
       if (!('gpu' in navigator)) {
-        webgpuNote.innerHTML = '<strong>Aviso:</strong> WebGPU não foi detectado neste navegador. Para jogar, abra em Chrome ou Edge com aceleração de hardware.';
+        webgpuNote.innerHTML = '<strong>Nota:</strong> WebGPU non è rilevato in questo browser. Per correre in 3D, apri questa pagina su Chrome, Edge o Safari 18+ con GPU hardware.';
       }
 
-      function setActiveVersion(version, pushUrl = true) {
+      function setActiveVersion(version, pushUrl = true, query = '') {
         if (!VALID.has(version)) return;
         document.body.classList.add('playing');
         document.body.dataset.version = version;
-        const target = `/${version}/`;
+        const target = `/${version}/${query}`;
         if (frame.getAttribute('src') !== target) {
           frame.setAttribute('src', target);
         }
@@ -520,7 +642,11 @@
       }
 
       document.querySelectorAll('[data-launch]').forEach((btn) => {
-        btn.addEventListener('click', () => setActiveVersion(btn.dataset.launch));
+        btn.addEventListener('click', () => {
+          const v = btn.dataset.launch;
+          if (v === 'napoli-demo') setActiveVersion('napoli', true, '?demo=1');
+          else setActiveVersion(v);
+        });
       });
       switchBtns.forEach((btn) => {
         btn.addEventListener('click', () => setActiveVersion(btn.dataset.switch));
@@ -532,7 +658,7 @@
       if (VALID.has(initial)) {
         setActiveVersion(initial, false);
       } else if (params.get('autostart') === '1') {
-        setActiveVersion('fable', false);
+        setActiveVersion('napoli', false, '?autostart=1');
       }
     })();
   </script>

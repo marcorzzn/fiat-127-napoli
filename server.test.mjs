@@ -25,16 +25,18 @@ test('serves root launcher page and health endpoint', async () => {
     const rootRes = await fetch(`${baseUrl}/`);
     assert.equal(rootRes.status, 200);
     const html = await rootRes.text();
-    assert.match(html, /Uno com escada/);
+    assert.match(html, /Gran Premio di Napoli/);
+    assert.match(html, /Fiat 127 Napoli 1926/);
     assert.match(html, /Fable 5\.2/);
     assert.match(html, /Opus 5\.5/);
     assert.match(html, /GPT-6\.2 Astra/);
   });
 });
 
-test('serves all three standalone WebGPU game builds intact', async () => {
+test('serves all four standalone WebGPU game builds intact', async () => {
   await withServer(async (baseUrl) => {
     const expected = [
+      ['/napoli/', 'Gran Premio di Napoli · Fiat 127 Napoli 1926'],
       ['/fable/', 'Uno com escada — circuito'],
       ['/opus/', 'Mille EP — Circuito da Serra'],
       ['/astra/', 'Serra do Lume'],
@@ -48,9 +50,21 @@ test('serves all three standalone WebGPU game builds intact', async () => {
   });
 });
 
-test('serves screenshots from .github/screenshots and returns 404 for unknown routes', async () => {
+test('serves Napoli reference assets, repository screenshots, and 404 on missing routes', async () => {
   await withServer(async (baseUrl) => {
-    for (const img of ['fable-tv.jpg', 'fable-largada.jpg', 'opus-largada.jpg', 'astra-largada.jpg']) {
+    const refAssets = [
+      'image_f3e260ec.png',
+      'image_352b7143.png',
+      'image_2f330de5.png',
+      'image_89486885.png',
+    ];
+    for (const img of refAssets) {
+      const res = await fetch(`${baseUrl}/assets/aistudio/${img}`);
+      assert.equal(res.status, 200, `${img} should load`);
+      assert.match(res.headers.get('content-type') || '', /image\/png/);
+    }
+
+    for (const img of ['fable-largada.jpg', 'opus-largada.jpg', 'astra-largada.jpg']) {
       const res = await fetch(`${baseUrl}/screenshots/${img}`);
       assert.equal(res.status, 200, `${img} should load`);
       assert.match(res.headers.get('content-type') || '', /image\/jpeg/);

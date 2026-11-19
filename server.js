@@ -21,8 +21,16 @@ export function createApp() {
     })
   );
 
+  // Expose attached reference assets stored under public/assets
+  app.use(
+    '/assets',
+    express.static(path.join(__dirname, 'public', 'assets'), {
+      maxAge: '1h',
+    })
+  );
+
   // Serve each standalone WebGPU build intact under its own path
-  for (const version of ['fable', 'opus', 'astra']) {
+  for (const version of ['napoli', 'fable', 'opus', 'astra']) {
     app.use(
       `/${version}`,
       express.static(path.join(__dirname, version), {
