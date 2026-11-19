@@ -1,15 +1,17 @@
 // Passes de tela cheia: meia resolução (AO + névoa), iluminação, transparentes, TAA, desfoque de movimento, bloom, saída.
-const MB_TILE = 20, BLOOM_N = 6;
+const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels || 6;
 function postInit() {
   const dev = G.dev, T = R.tex, V = R.view, W = G.W, H = G.H, D = R.pd, P = R.post = {};
   const HDR = 'rgba16float';
-  P.half = mkPost('half', {}, [HDR]); P.halfBG = bgOf(P.half, 0, [R.frameBuf, V.depth, V.gB, V.shadow, V.shadowS, R.sCmp]);
+  const halfDefs = Object.assign({ NS: String(Q_CONF.aoSamples || 14), NV: String(Q_CONF.volSamples || 20) }, Q_CONF.cascades === 1 ? { ONE_CASC: '' } : {});
+  P.half = mkPost('half', halfDefs, [HDR]); P.halfBG = bgOf(P.half, 0, [R.frameBuf, V.depth, V.gB, V.shadow, V.shadowS, R.sCmp]);
   P.blurH = mkPost('bilat', { DIR: '1,0' }, [HDR]); P.blurV = mkPost('bilat', { DIR: '0,1' }, [HDR]);
   P.blurHBG = bgOf(P.blurH, 0, [V.half[0]]); P.blurVBG = bgOf(P.blurV, 0, [V.half[1]]);
   D.half = mkPassDesc(1, null, false, 'half'); D.half.colorAttachments[0].view = V.half[0];
   D.blurH = mkPassDesc(1, null, false, 'blurH'); D.blurH.colorAttachments[0].view = V.half[1];
   D.blurV = mkPassDesc(1, null, false, 'blurV'); D.blurV.colorAttachments[0].view = V.half[2];
-  P.light = mkPost('light', { SSR: '' }, [HDR]);
+  const lightDefs = Object.assign({ VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades || 3) }, Q_CONF.ssr ? { SSR: '' } : {});
+  P.light = mkPost('light', lightDefs, [HDR]);
   P.lightBG = [0, 1].map(i => bgOf(P.light, 0, [R.frameBuf, V.gA, V.gB, V.gC, V.depth, V.shadow, V.shadowS, R.sCmp, V.half[2], V.env, V.sky, R.sClamp, R.sSky, V.hist[i]]));
   P.taa = mkPost('taa', {}, [HDR, 'rg16float']);
   P.taaBG = [0, 1].map(i => bgOf(P.taa, 0, [R.frameBuf, V.hdr, V.hist[i], V.gV, V.depth, R.sClamp]));
@@ -21,7 +23,7 @@ function postInit() {
   P.mbTileBG = bgOf(P.mbTile, 0, [V.vel]); P.mbNeighBG = bgOf(P.mbNeigh, 0, [V.tile[0]]);
   D.mbTile = mkPassDesc(1, null, false, 'mbTile'); D.mbTile.colorAttachments[0].view = V.tile[0];
   D.mbNeigh = mkPassDesc(1, null, false, 'mbNeigh'); D.mbNeigh.colorAttachments[0].view = V.tile[1];
-  P.mb = mkPost('mblur', { TILE: MB_TILE }, [HDR]);
+  P.mb = mkPost('mblur', Object.assign({ TILE: MB_TILE }, Q_CONF.motionBlur ? {} : { NO_MB: '' }), [HDR]);
   P.mbBG = [0, 1].map(i => bgOf(P.mb, 0, [R.frameBuf, V.hist[i], V.vel, V.tile[1], V.depth, R.sClamp]));
   D.mb = mkPassDesc(1, null, false, 'mblur'); D.mb.colorAttachments[0].view = V.mb;
   // bloom
@@ -87,7 +89,10 @@ function postFrame(enc) {
     for (let i = 0; i < R.transparents.length; i++) R.transparents[i].draw(p); p.end();
   }
   { const p = apiPass(enc, D.taa[cur]); p.setPipeline(P.taa); p.setBindGroup(0, P.taaBG[prev]); p.draw(3); p.end(); }
-  fsPass(enc, D.mbTile, P.mbTile, P.mbTileBG); fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
+  if (Q_CONF.motionBlur) {
+    fsPass(enc, D.mbTile, P.mbTile, P.mbTileBG);
+    fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
+  }
   fsPass(enc, D.mb, P.mb, P.mbBG[cur]);
   for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
   for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);

@@ -127,4 +127,10 @@ test('Built /napoli/index.html single-HTML WebGPU bundle parses cleanly and embe
   assert.doesNotThrow(() => {
     new vm.Script(match[1], { filename: 'napoli/index.html' });
   }, 'bundled JS in napoli/index.html must parse with zero syntax errors');
+
+  // Verify that personal hardware references are completely removed and presets use native sharpness
+  assert.ok(!html.includes('Radeon R5'), 'UI must not reference personal hardware');
+  assert.ok(!html.includes('Bassa (Radeon R5)'), 'Quality button must be generic "Bassa"');
+  assert.ok(html.includes('id="qLow">Bassa</button>'), 'Bassa button must be cleanly labeled');
+  assert.ok(!html.includes('scale: 0.60'), 'Canvas downscaling must be replaced with native 1:1 crisp rendering');
 });

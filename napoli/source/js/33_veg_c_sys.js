@@ -1,6 +1,6 @@
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: currentQuality !== 'low',
+  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },

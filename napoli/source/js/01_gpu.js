@@ -3,11 +3,11 @@ const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
 
-// Preset di qualità grafica calibrati per AMD Radeon R5 e hardware modesto
+// Preset di qualità grafica: Bassa (massima fluidità a risoluzione nativa), Media (bilanciata), Alta (fedeltà visiva)
 const QUALITY_PRESETS = {
-  low:  { label: 'Bassa', scale: 0.60, msaa: 1, shadow: 512,  envRes: 256, envMips: 6, facesPerFrame: 1 },
-  med:  { label: 'Media', scale: 0.75, msaa: 1, shadow: 1024, envRes: 256, envMips: 6, facesPerFrame: 1 },
-  high: { label: 'Alta',  scale: 1.00, msaa: 4, shadow: 2048, envRes: 512, envMips: 7, facesPerFrame: 2 },
+  low:  { label: 'Bassa', dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ssr: false, motionBlur: false, bloomLevels: 3, aoSamples: 4, volSamples: 4,  vegShadow: false, grass: false },
+  med:  { label: 'Media', dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ssr: false, motionBlur: true,  bloomLevels: 4, aoSamples: 8, volSamples: 8,  vegShadow: true,  grass: true },
+  high: { label: 'Alta',  dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ssr: true,  motionBlur: true,  bloomLevels: 6, aoSamples: 14, volSamples: 20, vegShadow: true,  grass: true },
 };
 
 function detectDefaultQuality(adapterInfo) {
@@ -19,7 +19,7 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/radeon\s*r[2-5]|intel.*(hd|uhd)|swiftshader|llvmpipe/.test(desc)) {
+  if (/swiftshader|llvmpipe|software|basic render|integrated/.test(desc)) {
     return 'low';
   }
   return 'med';
@@ -75,10 +75,10 @@ async function gpuInit() {
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
   const res = (Q.get('res') || '').split('x');
-  const dpr = Math.min(window.devicePixelRatio || 1, currentQuality === 'high' ? 2 : 1);
-  const qScale = Q_CONF.scale;
-  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr * qScale);
-  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr * qScale);
+  const maxDpr = currentQuality === 'high' ? 1.5 : 1.0;
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr);
+  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr);
   G.W = clamp(G.W & ~1, 320, 5120); G.H = clamp(G.H & ~1, 180, 2880);
   G.canvas.width = G.W; G.canvas.height = G.H;
   G.ctx = G.canvas.getContext('webgpu');

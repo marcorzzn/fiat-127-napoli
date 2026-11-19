@@ -24,7 +24,7 @@ Realizzata sullo stesso motore WebGPU single-HTML della repository (zero libreri
 * **Interfaccia italiana & Hub aggiornato:**
   * Menu e cruscotto HUD in italiano (`GIRO` / `ULTIMO` / `MIGLIORE`, *Inizia gara*, *Guida autonoma (Demo)* con pilota automatico live e cambio telecamera automatico, *Benchmark 60 s*, pose fisse `1–6` per ispezionare livrea e tracciato, supporto tastiera e gamepad).
   * Pagina principale (`/`) e GitHub Pages focalizzate sul Gran Premio di Napoli con panoramica completa, riferimenti visivi, guida ai comandi, simulatore integrato e attribuzione al progetto base.
-  * Selettore qualità grafica **Bassa / Media / Alta** (tasto `Q` o interfaccia) con autorilevamento per GPU integrate (AMD Radeon R5, Intel HD/UHD) e scaling risoluzione per evitare cali di frame e timeout GPU.
+  * Selettore qualità grafica **Bassa / Media / Alta** (tasto `Q` o interfaccia) calibrato a risoluzione nativa 1:1 (senza sgranature o sfocature), con carichi scalabili e ottimizzati per garantire massima fluidità anche su GPU integrate e notebook.
 
 ---
 

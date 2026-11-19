@@ -9,6 +9,11 @@
 @group(0) @binding(4) var gD: texture_depth_2d;
 @group(0) @binding(5) var sClamp: sampler;
 fn linZ(d: f32) -> f32 { return F.camFwd.w / max(d, 1e-6); }
+#ifdef NO_MB
+@fragment fn fs(in: FsV) -> @location(0) vec4f {
+  return vec4f(textureLoad(tCol, vec2i(in.pos.xy), 0).rgb, 1.0);
+}
+#else
 @fragment fn fs(in: FsV) -> @location(0) vec4f {
   let p = vec2i(in.pos.xy); let sz = F.screen.xy; let dim = vec2i(sz) - 1;
   let c0 = textureLoad(tCol, p, 0).rgb;
@@ -42,3 +47,4 @@ fn linZ(d: f32) -> f32 { return F.camFwd.w / max(d, 1e-6); }
   }
   return vec4f(acc / ws, 1.0);
 }
+#endif

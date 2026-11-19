@@ -1,10 +1,15 @@
 // Amostragem de sombras: 3 cascatas dinâmicas + mapa estático do mundo. Requer tShadow, tShadowS, sCmp e F.
+#ifndef VOGEL_N
 const VOGEL_N = 8;
+#endif
+#ifndef CASC_N
+const CASC_N = 3;
+#endif
 fn vogel(i: i32, n: i32, phi: f32) -> vec2f { let r = sqrt((f32(i) + 0.5) / f32(n)); let a = f32(i) * 2.39996323 + phi; return vec2f(cos(a), sin(a)) * r; }
 fn shadowTap(c: i32, uv: vec2f, z: f32, rad: f32, phi: f32) -> f32 {
   var s = 0.0;
   // cascata próxima com mais amostras (penumbras grandes sobre o carro não mostram a trama do ruído)
-  let n = select(VOGEL_N, 16, c == 0);
+  let n = select(VOGEL_N, select(VOGEL_N * 2, 4, VOGEL_N <= 4), c == 0);
   for (var i = 0; i < n; i++) { s += textureSampleCompareLevel(tShadow, sCmp, uv + vogel(i, n, phi) * rad, c, z); }
   return s / f32(n);
 }
@@ -27,7 +32,7 @@ fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   // percorre as cascatas da mais fina para a mais grossa; na faixa de borda de cada uma, MISTURA com a seguinte
   // (antes a troca era pontilhada por ruído e a borda da cascata aparecia como "dentes de pente" no asfalto)
   var acc = 0.0; var wAcc = 0.0;
-  for (var c = 0; c < 3; c++) {
+  for (var c = 0; c < CASC_N; c++) {
     let tw = F.shadowP[c];
     let lp = F.shadowVP[c] * vec4f(wp + n * tw * (0.6 + 2.2 * slope), 1.0);
     let uv = lp.xy * vec2f(0.5, -0.5) + 0.5;

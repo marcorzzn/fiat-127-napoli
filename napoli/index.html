@@ -94,12 +94,12 @@ html,body{margin:0;height:100%;background:#060c14;overflow:hidden;font:14px/1.45
 <div class="q-bar">
 <span class="q-title">Qualità:</span>
 <div class="q-group">
-<button type="button" class="q-btn" id="qLow">Bassa (Radeon R5)</button>
+<button type="button" class="q-btn" id="qLow">Bassa</button>
 <button type="button" class="q-btn" id="qMed">Media</button>
 <button type="button" class="q-btn" id="qHigh">Alta</button>
 </div>
 </div>
-<a class="hub-link" href="../">← Torna alla selezione circuiti</a>
+<a class="hub-link" href="../">← Torna alla pagina principale</a>
 </div></div>
 <script>
 (()=>{'use strict';
@@ -564,6 +564,19 @@ fn viewPos(px: vec2f, d: f32) -> vec3f {
   let p = F.invProjJ * vec4f(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, d, 1.0); return p.xyz / p.w;
 }
 fn fogSigma(y: f32) -> f32 { return F.fog.x * exp(-F.fog.y * (y - F.fog.z)); }
+#ifndef NS
+const NS = 14;
+#endif
+#ifndef NV
+const NV = 20;
+#endif
+#ifdef ONE_CASC
+fn sunVis1(wp: vec3f) -> f32 {
+  let lp = F.shadowVP[3] * vec4f(wp, 1.0); let uv = lp.xy * vec2f(0.5, -0.5) + 0.5;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { return 1.0; }
+  return textureSampleCompareLevel(tShadowS, sCmp, uv, lp.z - 0.001);
+}
+#else
 fn sunVis1(wp: vec3f) -> f32 {
   for (var c = 1; c < 3; c++) {
     let lp = F.shadowVP[c] * vec4f(wp, 1.0); let uv = lp.xy * vec2f(0.5, -0.5) + 0.5;
@@ -573,6 +586,7 @@ fn sunVis1(wp: vec3f) -> f32 {
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { return 1.0; }
   return textureSampleCompareLevel(tShadowS, sCmp, uv, lp.z - 0.001);
 }
+#endif
 @fragment fn fs(in: FsV) -> @location(0) vec4f {
   let fp = floor(in.pos.xy) * 2.0 + 0.5;               // pixel de resolução cheia correspondente
   let pxi = vec2i(fp); let dim = vec2i(F.screen.xy) - 1;
@@ -585,7 +599,7 @@ fn sunVis1(wp: vec3f) -> f32 {
     let R = clamp(zl * 0.11, 0.35, 1.6);                // raio em metros, cresce com a distância
     let ps = F.screen.y * 0.5 / F.post.y;
     let rpx = clamp(R * ps / zl, 5.0, 96.0);
-    var occ = 0.0; const NS = 14;
+    var occ = 0.0;
     for (var i = 0; i < NS; i++) {
       let r = (f32(i) + 0.5 + noise * 0.5) / f32(NS); let a = (f32(i) * 2.39996 + noise * 6.2832);
       let sp = fp + vec2f(cos(a), sin(a)) * rpx * r;
@@ -599,7 +613,7 @@ fn sunVis1(wp: vec3f) -> f32 {
   // névoa: fração iluminada ao longo do raio
   let wpp = F.invViewProjJ * vec4f(fp.x * F.screen.z * 2.0 - 1.0, 1.0 - fp.y * F.screen.w * 2.0, max(d, 1e-5), 1.0);
   let wp = wpp.xyz / wpp.w; let cam = F.camPos.xyz; let dv = wp - cam; let dist = length(dv); let dir = dv / dist;
-  let tMax = min(dist, VOL_DIST); const NV = 20; var wsum = 1e-6; var vsum = 0.0; var T = 1.0; var tp = 0.0;
+  let tMax = min(dist, VOL_DIST); var wsum = 1e-6; var vsum = 0.0; var T = 1.0; var tp = 0.0;
   let j2 = fract(noise + 0.618 * f32(pxi.x & 1) + 0.31 * f32(pxi.y & 1));
   for (var i = 0; i < NV; i++) {
     let f1 = (f32(i) + 1.0) / f32(NV); let tn = tMax * f1 * f1; let dt = tn - tp; let t = tp + dt * j2; tp = tn;
@@ -1511,6 +1525,11 @@ WGSL["mblur"] = `// Desfoque de movimento por pixel (reconstrução à McGuire):
 @group(0) @binding(4) var gD: texture_depth_2d;
 @group(0) @binding(5) var sClamp: sampler;
 fn linZ(d: f32) -> f32 { return F.camFwd.w / max(d, 1e-6); }
+#ifdef NO_MB
+@fragment fn fs(in: FsV) -> @location(0) vec4f {
+  return vec4f(textureLoad(tCol, vec2i(in.pos.xy), 0).rgb, 1.0);
+}
+#else
 @fragment fn fs(in: FsV) -> @location(0) vec4f {
   let p = vec2i(in.pos.xy); let sz = F.screen.xy; let dim = vec2i(sz) - 1;
   let c0 = textureLoad(tCol, p, 0).rgb;
@@ -1544,6 +1563,7 @@ fn linZ(d: f32) -> f32 { return F.camFwd.w / max(d, 1e-6); }
   }
   return vec4f(acc / ws, 1.0);
 }
+#endif
 `;
 WGSL["mbtile"] = `// Desfoque de movimento, etapa 1: velocidade de maior módulo por bloco (TILE px) ou máximo 3x3 entre blocos (NEIGH).
 #include fsq
@@ -1681,12 +1701,17 @@ fn shade(in: V2F, ff: bool) -> vec4f {
 }
 `;
 WGSL["shadow"] = `// Amostragem de sombras: 3 cascatas dinâmicas + mapa estático do mundo. Requer tShadow, tShadowS, sCmp e F.
+#ifndef VOGEL_N
 const VOGEL_N = 8;
+#endif
+#ifndef CASC_N
+const CASC_N = 3;
+#endif
 fn vogel(i: i32, n: i32, phi: f32) -> vec2f { let r = sqrt((f32(i) + 0.5) / f32(n)); let a = f32(i) * 2.39996323 + phi; return vec2f(cos(a), sin(a)) * r; }
 fn shadowTap(c: i32, uv: vec2f, z: f32, rad: f32, phi: f32) -> f32 {
   var s = 0.0;
   // cascata próxima com mais amostras (penumbras grandes sobre o carro não mostram a trama do ruído)
-  let n = select(VOGEL_N, 16, c == 0);
+  let n = select(VOGEL_N, select(VOGEL_N * 2, 4, VOGEL_N <= 4), c == 0);
   for (var i = 0; i < n; i++) { s += textureSampleCompareLevel(tShadow, sCmp, uv + vogel(i, n, phi) * rad, c, z); }
   return s / f32(n);
 }
@@ -1709,7 +1734,7 @@ fn sunShadowK(wp: vec3f, n: vec3f, px: vec2f, nl: f32, rot: f32) -> f32 {
   // percorre as cascatas da mais fina para a mais grossa; na faixa de borda de cada uma, MISTURA com a seguinte
   // (antes a troca era pontilhada por ruído e a borda da cascata aparecia como "dentes de pente" no asfalto)
   var acc = 0.0; var wAcc = 0.0;
-  for (var c = 0; c < 3; c++) {
+  for (var c = 0; c < CASC_N; c++) {
     let tw = F.shadowP[c];
     let lp = F.shadowVP[c] * vec4f(wp + n * tw * (0.6 + 2.2 * slope), 1.0);
     let uv = lp.xy * vec2f(0.5, -0.5) + 0.5;
@@ -2850,11 +2875,11 @@ const Q = new URLSearchParams(location.search);
 const BUILD = [];           // construtores de cena registrados pelos outros arquivos: async fn(), executados em ordem por main()
 const GAME = { ready: false, mode: Q.get('scene') || 'game', capture: Q.has('cap'), tick: null, init: null, minFrameMs: 0, gpuWorstMs: 0, ui: false };
 
-// Preset di qualità grafica calibrati per AMD Radeon R5 e hardware modesto
+// Preset di qualità grafica: Bassa (massima fluidità a risoluzione nativa), Media (bilanciata), Alta (fedeltà visiva)
 const QUALITY_PRESETS = {
-  low:  { label: 'Bassa', scale: 0.60, msaa: 1, shadow: 512,  envRes: 256, envMips: 6, facesPerFrame: 1 },
-  med:  { label: 'Media', scale: 0.75, msaa: 1, shadow: 1024, envRes: 256, envMips: 6, facesPerFrame: 1 },
-  high: { label: 'Alta',  scale: 1.00, msaa: 4, shadow: 2048, envRes: 512, envMips: 7, facesPerFrame: 2 },
+  low:  { label: 'Bassa', dpr: 1.0, shadow: 512,  cascades: 1, vogelN: 4, envRes: 256, envMips: 5, facesPerFrame: 0, ssr: false, motionBlur: false, bloomLevels: 3, aoSamples: 4, volSamples: 4,  vegShadow: false, grass: false },
+  med:  { label: 'Media', dpr: 1.0, shadow: 1024, cascades: 2, vogelN: 6, envRes: 256, envMips: 6, facesPerFrame: 1, ssr: false, motionBlur: true,  bloomLevels: 4, aoSamples: 8, volSamples: 8,  vegShadow: true,  grass: true },
+  high: { label: 'Alta',  dpr: 1.5, shadow: 2048, cascades: 3, vogelN: 8, envRes: 512, envMips: 7, facesPerFrame: 2, ssr: true,  motionBlur: true,  bloomLevels: 6, aoSamples: 14, volSamples: 20, vegShadow: true,  grass: true },
 };
 
 function detectDefaultQuality(adapterInfo) {
@@ -2866,7 +2891,7 @@ function detectDefaultQuality(adapterInfo) {
   if (param && QUALITY_PRESETS[param]) return param;
 
   const desc = `${adapterInfo?.vendor || ''} ${adapterInfo?.architecture || ''} ${adapterInfo?.description || ''} ${adapterInfo?.device || ''}`.toLowerCase();
-  if (/radeon\s*r[2-5]|intel.*(hd|uhd)|swiftshader|llvmpipe/.test(desc)) {
+  if (/swiftshader|llvmpipe|software|basic render|integrated/.test(desc)) {
     return 'low';
   }
   return 'med';
@@ -2922,10 +2947,10 @@ async function gpuInit() {
   G.dev.addEventListener('uncapturederror', e => { console.error('GPU: ' + e.error.message); G.lastErr = e.error.message; });
   G.canvas = document.getElementById('c');
   const res = (Q.get('res') || '').split('x');
-  const dpr = Math.min(window.devicePixelRatio || 1, currentQuality === 'high' ? 2 : 1);
-  const qScale = Q_CONF.scale;
-  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr * qScale);
-  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr * qScale);
+  const maxDpr = currentQuality === 'high' ? 1.5 : 1.0;
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+  G.W = res.length === 2 ? +res[0] : Math.round(innerWidth * dpr);
+  G.H = res.length === 2 ? +res[1] : Math.round(innerHeight * dpr);
   G.W = clamp(G.W & ~1, 320, 5120); G.H = clamp(G.H & ~1, 180, 2880);
   G.canvas.width = G.W; G.canvas.height = G.H;
   G.ctx = G.canvas.getContext('webgpu');
@@ -4062,25 +4087,29 @@ function apiCanvasView() { return G.ctx.getCurrentTexture().createView(); }
 function renderFrame() {
   const dev = G.dev, c = R.cam, D = R.pd;
   frameUniforms();
-  for (let i = 0; i < 3; i++) cascadeSetup(i);
+  const nCasc = Q_CONF.cascades || 3;
+  for (let i = 0; i < nCasc; i++) cascadeSetup(i);
   setPass(0, c.vpJ, c.pos);
-  for (let i = 0; i < 3; i++) setPass(1 + i, R.casc.vp[i], c.pos);
+  for (let i = 0; i < nCasc; i++) setPass(1 + i, R.casc.vp[i], c.pos);
   // faces do cubemap de ambiente por quadro (ciclo completo adaptado à qualidade)
-  const nFaces = Q_CONF.facesPerFrame || (currentQuality === 'low' ? 1 : 2);
-  const face = (R.frameIdx * nFaces) % 6; R.cube.cur.set(R.cube.pos);
-  for (let k = 0; k < nFaces; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
+  const nFaces = Q_CONF.facesPerFrame !== undefined ? Q_CONF.facesPerFrame : 1;
+  const bakeStaticCube = nFaces === 0 && R.frameIdx === 0;
+  const cubeFacesToRender = bakeStaticCube ? 6 : nFaces;
+  const face = bakeStaticCube ? 0 : (nFaces > 0 ? (R.frameIdx * nFaces) % 6 : 0);
+  R.cube.cur.set(R.cube.pos);
+  for (let k = 0; k < cubeFacesToRender; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
   dev.queue.writeBuffer(R.frameBuf, 0, FR.data);
   dev.queue.writeBuffer(R.passBuf, 0, R.passData, 0, 13 * 64);
   dev.queue.writeBuffer(R.objBuf, 0, R.objData, 0, R.objCount * 64);
   for (let i = 0; i < R.preFrame.length; i++) R.preFrame[i]();
   const enc = apiEncoder();
   // sombras
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < nCasc; i++) {
     const p = apiPass(enc, D.shadow[i]);
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();
   }
   // faces do cubemap de ambiente
-  for (let k = 0; k < nFaces; k++) {
+  for (let k = 0; k < cubeFacesToRender; k++) {
     const f = (face + k) % 6; cubeSetup(f);
     const p = apiPass(enc, D.cube[f]);
     cubeSky(p, 11 + k);
@@ -4112,17 +4141,19 @@ function renderStaticShadow() {
 
 // ---- 21_post.js
 // Passes de tela cheia: meia resolução (AO + névoa), iluminação, transparentes, TAA, desfoque de movimento, bloom, saída.
-const MB_TILE = 20, BLOOM_N = 6;
+const MB_TILE = 20, BLOOM_N = Q_CONF.bloomLevels || 6;
 function postInit() {
   const dev = G.dev, T = R.tex, V = R.view, W = G.W, H = G.H, D = R.pd, P = R.post = {};
   const HDR = 'rgba16float';
-  P.half = mkPost('half', {}, [HDR]); P.halfBG = bgOf(P.half, 0, [R.frameBuf, V.depth, V.gB, V.shadow, V.shadowS, R.sCmp]);
+  const halfDefs = Object.assign({ NS: String(Q_CONF.aoSamples || 14), NV: String(Q_CONF.volSamples || 20) }, Q_CONF.cascades === 1 ? { ONE_CASC: '' } : {});
+  P.half = mkPost('half', halfDefs, [HDR]); P.halfBG = bgOf(P.half, 0, [R.frameBuf, V.depth, V.gB, V.shadow, V.shadowS, R.sCmp]);
   P.blurH = mkPost('bilat', { DIR: '1,0' }, [HDR]); P.blurV = mkPost('bilat', { DIR: '0,1' }, [HDR]);
   P.blurHBG = bgOf(P.blurH, 0, [V.half[0]]); P.blurVBG = bgOf(P.blurV, 0, [V.half[1]]);
   D.half = mkPassDesc(1, null, false, 'half'); D.half.colorAttachments[0].view = V.half[0];
   D.blurH = mkPassDesc(1, null, false, 'blurH'); D.blurH.colorAttachments[0].view = V.half[1];
   D.blurV = mkPassDesc(1, null, false, 'blurV'); D.blurV.colorAttachments[0].view = V.half[2];
-  P.light = mkPost('light', { SSR: '' }, [HDR]);
+  const lightDefs = Object.assign({ VOGEL_N: String(Q_CONF.vogelN || 8), CASC_N: String(Q_CONF.cascades || 3) }, Q_CONF.ssr ? { SSR: '' } : {});
+  P.light = mkPost('light', lightDefs, [HDR]);
   P.lightBG = [0, 1].map(i => bgOf(P.light, 0, [R.frameBuf, V.gA, V.gB, V.gC, V.depth, V.shadow, V.shadowS, R.sCmp, V.half[2], V.env, V.sky, R.sClamp, R.sSky, V.hist[i]]));
   P.taa = mkPost('taa', {}, [HDR, 'rg16float']);
   P.taaBG = [0, 1].map(i => bgOf(P.taa, 0, [R.frameBuf, V.hdr, V.hist[i], V.gV, V.depth, R.sClamp]));
@@ -4134,7 +4165,7 @@ function postInit() {
   P.mbTileBG = bgOf(P.mbTile, 0, [V.vel]); P.mbNeighBG = bgOf(P.mbNeigh, 0, [V.tile[0]]);
   D.mbTile = mkPassDesc(1, null, false, 'mbTile'); D.mbTile.colorAttachments[0].view = V.tile[0];
   D.mbNeigh = mkPassDesc(1, null, false, 'mbNeigh'); D.mbNeigh.colorAttachments[0].view = V.tile[1];
-  P.mb = mkPost('mblur', { TILE: MB_TILE }, [HDR]);
+  P.mb = mkPost('mblur', Object.assign({ TILE: MB_TILE }, Q_CONF.motionBlur ? {} : { NO_MB: '' }), [HDR]);
   P.mbBG = [0, 1].map(i => bgOf(P.mb, 0, [R.frameBuf, V.hist[i], V.vel, V.tile[1], V.depth, R.sClamp]));
   D.mb = mkPassDesc(1, null, false, 'mblur'); D.mb.colorAttachments[0].view = V.mb;
   // bloom
@@ -4200,7 +4231,10 @@ function postFrame(enc) {
     for (let i = 0; i < R.transparents.length; i++) R.transparents[i].draw(p); p.end();
   }
   { const p = apiPass(enc, D.taa[cur]); p.setPipeline(P.taa); p.setBindGroup(0, P.taaBG[prev]); p.draw(3); p.end(); }
-  fsPass(enc, D.mbTile, P.mbTile, P.mbTileBG); fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
+  if (Q_CONF.motionBlur) {
+    fsPass(enc, D.mbTile, P.mbTile, P.mbTileBG);
+    fsPass(enc, D.mbNeigh, P.mbNeigh, P.mbNeighBG);
+  }
   fsPass(enc, D.mb, P.mb, P.mbBG[cur]);
   for (let i = 0; i < BLOOM_N; i++) fsPass(enc, D.blDown[i], i ? P.blDown : P.blFirst, P.blDownBG[i]);
   for (let i = 0; i < BLOOM_N - 1; i++) fsPass(enc, D.blUp[i], P.blUp, P.blUpBG[i]);
@@ -6480,7 +6514,7 @@ function vegArchetypes() {
 // ---- 33_veg_c_sys.js
 // Vegetação — distribuição das instâncias, impostores assados na inicialização e desenho (malha perto, impostor longe).
 const VEG = {
-  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: true, onGrass: true, onCube: currentQuality !== 'low',
+  on: true, onMesh: true, onLeaf: true, onImp: true, onShadow: Q_CONF.vegShadow !== false, onGrass: Q_CONF.grass !== false, onCube: currentQuality !== 'low',
   CELL: 64, SUP: 256, NC: 52, NS: 13, x0: 0, z0: 0, n: 0, nTrees: 0,
   inst: null, cellStart: null, cellCount: null, cellY: null, supStart: null, supCount: null, supY: null,
   meshes: [], leafMeshes: [], dims: new Float32Array(48), zoom: 1, stats: { meshDraws: 0, impDraws: 0, meshInst: 0, meshTris: 0, leafDraws: 0, leafInst: 0, leafTris: 0 },
