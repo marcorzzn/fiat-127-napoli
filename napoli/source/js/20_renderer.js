@@ -314,29 +314,28 @@ function apiCanvasView() { return G.ctx.getCurrentTexture().createView(); }
 function renderFrame() {
   const dev = G.dev, c = R.cam, D = R.pd;
   frameUniforms();
-  const nCasc = Q_CONF.cascades || 3;
-  for (let i = 0; i < nCasc; i++) cascadeSetup(i);
+  for (let i = 0; i < 3; i++) cascadeSetup(i);
   setPass(0, c.vpJ, c.pos);
-  for (let i = 0; i < nCasc; i++) setPass(1 + i, R.casc.vp[i], c.pos);
+  for (let i = 0; i < 3; i++) setPass(1 + i, R.casc.vp[i], c.pos);
   // faces do cubemap de ambiente por quadro (ciclo completo adaptado à qualidade)
-  const nFaces = Q_CONF.facesPerFrame !== undefined ? Q_CONF.facesPerFrame : 1;
-  const bakeStaticCube = nFaces === 0 && R.frameIdx === 0;
-  const cubeFacesToRender = bakeStaticCube ? 6 : nFaces;
-  const face = bakeStaticCube ? 0 : (nFaces > 0 ? (R.frameIdx * nFaces) % 6 : 0);
+  // Durante o aquecimento (GAME.ready == false), renderiza 1 face/quadro para cobrir todas as 6 faces
+  const nFaces = (GAME.ready && Q_CONF.facesPerFrame === 0) ? 0 : Math.min(Q_CONF.facesPerFrame !== undefined ? Q_CONF.facesPerFrame : 1, 2);
+  const face = nFaces > 0 ? (R.frameIdx * nFaces) % 6 : 0;
   R.cube.cur.set(R.cube.pos);
-  for (let k = 0; k < cubeFacesToRender; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
+  for (let k = 0; k < nFaces; k++) { const f = (face + k) % 6; cubeSetup(f); setPass(5 + f, R.cube.vp, R.cube.cur); m4inv(R.cube.view, R.cube.vp); R.passData.set(R.cube.view, (11 + k) * 64); }
   dev.queue.writeBuffer(R.frameBuf, 0, FR.data);
   dev.queue.writeBuffer(R.passBuf, 0, R.passData, 0, 13 * 64);
   dev.queue.writeBuffer(R.objBuf, 0, R.objData, 0, R.objCount * 64);
   for (let i = 0; i < R.preFrame.length; i++) R.preFrame[i]();
   const enc = apiEncoder();
   // sombras
+  const nCasc = Q_CONF.cascades || 3;
   for (let i = 0; i < nCasc; i++) {
     const p = apiPass(enc, D.shadow[i]);
     drawAll(p, ctxFrom(KIND.SHADOW, R.casc.vp[i], 6, c.pos, i), 1 + i, R.passBG); p.end();
   }
   // faces do cubemap de ambiente
-  for (let k = 0; k < cubeFacesToRender; k++) {
+  for (let k = 0; k < nFaces; k++) {
     const f = (face + k) % 6; cubeSetup(f);
     const p = apiPass(enc, D.cube[f]);
     cubeSky(p, 11 + k);

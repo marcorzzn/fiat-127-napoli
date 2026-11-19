@@ -9,7 +9,7 @@ fn vogel(i: i32, n: i32, phi: f32) -> vec2f { let r = sqrt((f32(i) + 0.5) / f32(
 fn shadowTap(c: i32, uv: vec2f, z: f32, rad: f32, phi: f32) -> f32 {
   var s = 0.0;
   // cascata próxima com mais amostras (penumbras grandes sobre o carro não mostram a trama do ruído)
-  let n = select(VOGEL_N, select(VOGEL_N * 2, 4, VOGEL_N <= 4), c == 0);
+  let n = select(VOGEL_N, select(16, 4, VOGEL_N <= 4), c == 0);
   for (var i = 0; i < n; i++) { s += textureSampleCompareLevel(tShadow, sCmp, uv + vogel(i, n, phi) * rad, c, z); }
   return s / f32(n);
 }
